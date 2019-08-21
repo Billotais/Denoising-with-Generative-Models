@@ -39,13 +39,17 @@ Some filters : Butterworth filter, Chebyshev filter, Elliptical filter
 
 ## Speech Denoising with Deep Feature Losses (Speech_DL.pdf)
 
-Fully convolutional network, work on the raw waveform. For the loss, use the internal activation of another network trainned for domestic audio tagging, and environnement detection (classification network). This was my first idea of a GAN, generative network "creates a clean sound" from the seed/the noisy sound, and then another network (classification) tells us if our output is actually "a good sound" .
+Fully convolutional network, work on the raw waveform. For the loss, use the internal activation of another network trainned for domestic audio tagging, and environnement detection (classification network). It's a little bit like a GAN.
 
 Most approaches today are done on the spectrogram domain, this one not. Prevents some artefacts due do IFT. Methods that are in the time domain often use regression loss between input and output wave. Here, the loss is the dissimilarity between hidden activations of input and ouput waves. Inspired from computer vision (-> Perceptual_Losses.pdf)
 
 Details of The main network are given in papers, section II-A-a.Different layers in the classification/feature/loss network correspond to different time scales. The classification network is inspired by VGG architecture from CV, details in paper II-B-a. II-B-b explain how to transoorm activations / weights to a loss.
 
-Train the feature loss network using multiple classification tasks (scene classification, audio tagging). Train the speech denoising using the [1] database.
+Train the feature loss network using multiple classification tasks (scene classification, audio tagging). Train the speech denoising using the [1] database. They used the clean speeches and some noise samples and created the training data by combining them together, then they are downsampled.
+
+Experimental setup : compared with Wiener filterning pipeline, SEGAN, and the WaveNet based one used as a baseline. Used different score metrics (overall (OVL), the signal (SIG), and the background (BAK) scores)). It was better than all the baselines. Also evaluated with human testers, also better than the others.
+
+Now this is for speech, and it might not work as well for general sound/music
 
 ## Recurrent Neural Networks for Noise Reduction in Robust ASR (RNN.pdf)
 
@@ -57,6 +61,9 @@ Train the feature loss network using multiple classification tasks (scene classi
 ## Raw Waveform-based Speech Enhancement by Fully Convolutional Networks (RawWave_CNN.pdf)
 
 ## SEGAN: Speech Enhancement Generative Adversarial Network (Speech_GAN.pdf)
+
+## A Wavenet for Speech Denoising (WaveNet.pdf)
+
 # Audio super-resolution papers
 
 ## Audio Super-Resolution using Neural Nets (SuperRes_NN.pdf)
@@ -76,8 +83,14 @@ https://kuleshov.github.io/audio-super-res/#
 
 # Datasets 
 
-## 1: https://datashare.is.ed.ac.uk/handle/10283/1942 Voice database witrh noisy and clean version
-## 2: https://datashare.is.ed.ac.uk/handle/10283/2791 New version of [1], also voice
+## 1: Voice database with noisy and clean version
+
+https://datashare.is.ed.ac.uk/handle/10283/1942 
+
+## 2: New version of [1], also voice
+
+https://datashare.is.ed.ac.uk/handle/10283/2791 
+
 ## 3: Speech database with clean and noisy
 
 
