@@ -53,7 +53,16 @@ Now this is for speech, and it might not work as well for general sound/music
 
 ## Recurrent Neural Networks for Noise Reduction in Robust ASR (RNN.pdf)
 
+SPLICE algorithm  is a model that can reduce noise by finding a joint distribution between clean and noisy data, ref to article in the paper's reference, but could not find it online for free.
+
+We could simply engineer a filter, but it's hard, and not perfect .
+
+Basic idea : We can use L1 norm as the loss function. This type of network is known as denoising autoencoder (DAE). Since input has variable length, we train on a small moving window
+
+More advanced : Deep recurrent denoising audtoencoder, we add conection "between the windows" $\implies$ Input is [0 1 2] [1 2 3] [2 3 0], we give each one one to a NN with e.g. 3 hidden layer, with layer 2 recursively connected, and it gives [1] [2] [3] as the output. Uses Aurora2 corpus, with noisy variants synthetically generated
+
 ## Investigating RNN-based speech enhancement methods for noise-robust Text-to-Speech (RNN_Speech_Enhancement.pdf)
+
 ## Audio Denoising with Deep Network Priors (DN_Priors.pdf)
 
 ## Spectral and Cepstral Audio Noise Reduction Techniques in Speech Emotion Recognition (Spectral_Cepstral.pdf)
@@ -93,5 +102,8 @@ https://datashare.is.ed.ac.uk/handle/10283/2791
 
 ## 3: Speech database with clean and noisy
 
-
 https://github.com/dingzeyuli/SpEAR-speech-database
+
+## 4: Aurora2
+
+http://aurora.hsnr.de/aurora-2.html Some script that can generate noisy data
