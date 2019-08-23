@@ -63,11 +63,51 @@ More advanced : Deep recurrent denoising audtoencoder, we add conection "between
 
 ## Investigating RNN-based speech enhancement methods for noise-robust Text-to-Speech (RNN_Speech_Enhancement.pdf)
 
+Shows the two alternative approaches (time vs frequency) on a graph
+
+...
+
+
 ## Audio Denoising with Deep Network Priors (DN_Priors.pdf)
+
+Combines time and frequency domain, unsuppervised, you try to fit the noisy audio and since we only partialy fit the output of the network helps to find the clean audio. Link to github repo with some data and the code https://github.com/mosheman5/DNP.
+
+Usually we first create a mask that tells us what frequency are noise, then we use an algo that removes those frequencies.
+
+Here the assumption is that it is hard by definition to fit noise, so the NN will only fit the clean part of the input. 
+
+Technique already used in CV. Diff : in CV, the output is already the cleaned image, not here, so they create a spectral mask from the ouput to then denoise the audiio. Better than other unsupervised methods, almost as good the the supervised ones.
+
+=> Probably not usefull for GANs.
+
 
 ## Spectral and Cepstral Audio Noise Reduction Techniques in Speech Emotion Recognition (Spectral_Cepstral.pdf)
 
+They will compare their method to methods of "Spectral substraction", where you remove the noise spectrum from the audio spectrum.
+
+Need to look in more details at "Spectral domain", "Power Spectral"; "log-sepstral", "cepstral domain", ...
+
+One again no NN are used here, this is mostly some signal processing, so I don't think it will be very usefull.
+
+They also talk about "accurancy measures", e.g. "Itakura distance", "Toeplotz autocorrelation matrix", "euclidian distance between two mel-frequency cepstral vectors".
+
+Probably more informations about signal processing techniques in the references.
+
 ## Raw Waveform-based Speech Enhancement by Fully Convolutional Networks (RawWave_CNN.pdf)
+
+Convolutional, waveform to waveform. Mentions like most "Wiener filtering", "spectral substraction", "non-negative matrix factorisation". Also mentions "Deep denoising autoencoder" from (RNN.pdf), also see (DDAE.pdf) that they are citing.
+
+Explain that most models use the magnitude spectrogram (-> log-power spcetra), which will leave the phase noisy (as it used the phase from the noisy signal to reconstruct the output signal). Also mentions that it is important to use the phase information to reconstruct the signal afterwards. Apparently DL based models that use the raw form often get better results.
+
+Fully connected is not very good since it won't keep local informaton (think high frequencies). They use A "Fully convolutional network FCN" and not a CNN, see (FCN.pdf). A FCN also mean a lot less paramters.
+
+Convolutional is considered better since we need adjacent information to make sense of frequencies in the time domain. Fully connected layers cause problems (can't moel high and low frequencies together), so that's why we don't have one at the end in a FCN (FCN = CNN without fully-connected layers). 
+
+For the experiment, as some of the others papers, they took clean data and corrupted it with some noise (e.g. Babble, Car, Jackhammer, pink, street, white gaussian, ...)
+
+They also mention at the end the difference between the "shift step" for the input in the case of a DNN, but it's not very clear what they did with the FCN. They say the took 512 samples from the input wave, but does it seems really low if we use e.g. 44kHz sampling for our music.
+
+## Speech Enhancement Based on Deep Denoising Autoencoder (DDAE.pdf)
 
 ## SEGAN: Speech Enhancement Generative Adversarial Network (Speech_GAN.pdf)
 
@@ -89,6 +129,8 @@ https://kuleshov.github.io/audio-super-res/#
 ## Perceptual Losses for Real-Time Style Transfer and Super-Resolution (Perceptual_Losses.pdf)
 
 ## The Unreasonable Effectiveness of Deep Features as a Perceptual Metric (Perceptual_Metric.pdf)
+
+## Fully Convolutional Networks for Semantic Segmentation (FCN.pdf)
 
 # Datasets 
 
