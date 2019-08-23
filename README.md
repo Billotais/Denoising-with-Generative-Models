@@ -109,6 +109,18 @@ They also mention at the end the difference between the "shift step" for the inp
 
 ## Speech Enhancement Based on Deep Denoising Autoencoder (DDAE.pdf)
 
+They meantion a DAE where they only trained using clean speech : Clean as in and out, then when we give a noisy signal it tries to express it on the "clean subspace/basis function", they try to model "what makes a clean speech", need to look into that. This time, they use dirty-clean pairs, so they want to know "what is the statistical difference between noisy and clean.
+
+Once again, they create their dataset by adding some noise artificially. They mention (RNN.pdf), which uses a recurrent network, this won't be the case here.
+
+The architecture looks like a classical DNN. They stack "neural autoencoders" together, and each AE seems to be layer - non-linear - layer. They also use regularization. For training, they first pretrain each AE individually which adequate parameters, then put them together and train again.
+
+Measurement are specific to speech, they use "noise reduction", "speech distortion" and "perceptual evalutation for speech qualty - PESQ" / not clear what this is.
+
+For the features they use "Mel frequency power spectrum (MFP)" on 16ms intervals
+
+Their results are mostly better than traditional methods.
+
 ## SEGAN: Speech Enhancement Generative Adversarial Network (Speech_GAN.pdf)
 
 ## A Wavenet for Speech Denoising (WaveNet.pdf)
