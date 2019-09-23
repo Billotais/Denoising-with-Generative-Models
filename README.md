@@ -5,8 +5,50 @@ published: true
 description: Project at VITA lab - Preliminary notes 
 ---
 
+# Week 2 : Learning pytorch, finding data
 
-# Audio denoising papers
+## Beethoven dataset
+
+Downloaded, ~350MB, OGG format, bitrate between 96 and 112 kbps
+
+## Pytorch 
+
+Big tutorial [here](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html). 
+
+U-net in paytorch [here](https://github.com/milesial/Pytorch-UNet). Seems really easy to creates sub-modules in a seperate file, and then call them from the main entwork. So it will be quite easy to create a class for the downsampling block and the class for the upsampling block, and then put them one after the other. Similarly, for the discriminator, they repeat a block 7 times, so we can create it and reuse it.
+
+Downsampling : 4 filters, 1 of each size. Then is goes through PRelU (Parametric relu) : $f(x) = alpha * x for x < 0, f(x) = x for x >= 0$ And then it goes throught the Superpixel block (similar to a pooling block) which reduces the dimension by 2 and double the number of filters (alternate values, even goes in one output, odd goes in the other output). This seem straight forward.
+
+Note : tu add skip connections, we just need to keep the variable representing the ouput of the downsampling block, and give it to the upsampling block as, for instace, a class argument. We can then just "add" it.
+
+ex : 
+
+```
+out16 = self.in_tr(x)
+out32 = self.down(16, 32, out16)
+out64 = self.down(32, 64, out32)
+out128 = self.down(64, 128, out64)
+out = self.up(128, 64, out128)
+out = self.up(64, 32, out64)
+out = self.up(32, 16, out32)
+out = self.out_tr(out)
+```
+
+Upsampling block : Once again we have the same 4 filters. I'm not sure how we are supposed to upsample if we have convolutional filters again. Then a dropout, the same PRelU, a subpixel block which this times interleaves two "samples" to make one larger. And then we stack with the input of the corresponding downsampling block.
+
+## Audio specific 
+
+torchaudio seems to be able to do resampling, and can handle waveform audio. Can do many other transformations. Probably good to use this if we do super resolution, so we can generate our intput data. Tuto [here](https://pytorch.org/tutorials/beginner/audio_preprocessing_tutorial.html) Wasn't able to install it, always an error.
+
+Could also try to use [Librosa](https://stackoverflow.com/questions/30619740/python-downsampling-wav-audio-file) that can open files downsampled directly.
+
+## Paper
+
+Will probably follow [this paper](https://bilat.xyz/vita/Adversarial.pdf) (MUGAN), but it is "under review" so there isn't any names. How will this work ?
+
+So this is a GAN with an external network to get a feature loss. The advantage is that this new network is unsuppervised so we don't need to find another dataset
+
+# Week 1 : Audio denoising papers
 
 ## Noise Reduction Techniques and Algorithms For Speech Signal Processing (Algo_Speech.pdf)
 
