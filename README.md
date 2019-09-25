@@ -11,6 +11,16 @@ description: Project at VITA lab - Preliminary notes
 
 Downloaded, ~350MB, OGG format, bitrate between 96 and 112 kbps
 
+## MAESTRO Dataset
+
+Piano recording from virtuosic piano performances, ~200 hours in total, available in midi (precisly recorded from the piano, 85MB) or in WAV (122 GB).
+
+Might be a very good complement to the Beethoven dataset, and maybe better quality ? 
+
+[here](https://magenta.tensorflow.org/datasets/maestro)
+## Lakh MIDI dataset
+
+176k+ midi files, [here](https://colinraffel.com/projects/lmd/)
 ## Pytorch 
 
 Big tutorial [here](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html). 
