@@ -17,7 +17,7 @@ Big tutorial [here](https://pytorch.org/tutorials/beginner/deep_learning_60min_b
 
 U-net in paytorch [here](https://github.com/milesial/Pytorch-UNet). Seems really easy to creates sub-modules in a seperate file, and then call them from the main entwork. So it will be quite easy to create a class for the downsampling block and the class for the upsampling block, and then put them one after the other. Similarly, for the discriminator, they repeat a block 7 times, so we can create it and reuse it.
 
-Downsampling : 4 filters, 1 of each size. Then is goes through PRelU (Parametric relu) : $f(x) = alpha * x for x < 0, f(x) = x for x >= 0$ And then it goes throught the Superpixel block (similar to a pooling block) which reduces the dimension by 2 and double the number of filters (alternate values, even goes in one output, odd goes in the other output). This seem straight forward.
+
 
 Note : tu add skip connections, we just need to keep the variable representing the ouput of the downsampling block, and give it to the upsampling block as, for instace, a class argument. We can then just "add" it.
 
@@ -34,7 +34,7 @@ out = self.up(32, 16, out32)
 out = self.out_tr(out)
 ```
 
-Upsampling block : Once again we have the same 4 filters. I'm not sure how we are supposed to upsample if we have convolutional filters again. Then a dropout, the same PRelU, a subpixel block which this times interleaves two "samples" to make one larger. And then we stack with the input of the corresponding downsampling block.
+
 
 ## Audio specific 
 
@@ -46,7 +46,13 @@ Could also try to use [Librosa](https://stackoverflow.com/questions/30619740/pyt
 
 Will probably follow [this paper](https://bilat.xyz/vita/Adversarial.pdf) (MUGAN), but it is "under review" so there isn't any names. How will this work ?
 
-So this is a GAN with an external network to get a feature loss. The advantage is that this new network is unsuppervised so we don't need to find another dataset
+Need to check how to train the external network
+
+Input : fixed size audio sample from the data, going through low pass filter. They don't seem to give the input size, but they use 8 layers => 2^8 as the input size maybe ?
+
+Downsampling : 4 filters, 1 of each size. Then is goes through PRelU (Parametric relu) : $f(x) = alpha * x for x < 0, f(x) = x for x >= 0$ And then it goes throught the Superpixel block (similar to a pooling block) which reduces the dimension by 2 and double the number of filters (alternate values, even goes in one output, odd goes in the other output). This seem straight forward.
+
+Upsampling block : Once again we have the same 4 filters. I'm not sure how we are supposed to upsample if we have convolutional filters again. Then a dropout, the same PRelU, a subpixel block which this times interleaves two "samples" to make one larger. And then we stack with the input of the corresponding downsampling block.
 
 # Week 1 : Audio denoising papers
 
