@@ -29,7 +29,7 @@ U-net in paytorch [here](https://github.com/milesial/Pytorch-UNet). Seems really
 
 
 
-Note : tu add skip connections, we just need to keep the variable representing the ouput of the downsampling block, and give it to the upsampling block as, for instace, a class argument. We can then just "add" it.
+Note : to add skip connections, we just need to keep the variable representing the ouput of the downsampling block, and give it to the upsampling block as, for instace, a class argument. We can then just "add" it.
 
 ex : 
 
