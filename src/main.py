@@ -8,8 +8,8 @@ import torchaudio
 from torch.utils.data import DataLoader
 
 from network import Net
-from helpers import pytorch_rolling_window, make_train_step
-from dataset import AudioDataset
+from utils import make_train_step
+from datasets import AudioIDDataset, AudioUpScalingDataset
 
 from progress.bar import Bar
 import matplotlib.pyplot as plt
@@ -22,8 +22,8 @@ net = Net(8, verbose = 0)
 
 
 filename = "/mnt/Data/maestro-v2.0.0/2004/MIDI-Unprocessed_SMF_02_R1_2004_01-05_ORIG_MID--AUDIO_02_R1_2004_05_Track05_wav.wav"
-
-train_data = AudioDataset(filename, window=1024, stride=128, samples=10000)
+train_data = AudioUpScalingDataset(filename, window=1024, stride=128, samples=10000, compressed_rate=5000, target_rate=10000)
+#train_data = AudioIDDataset(filename, window=1024, stride=128, samples=10000)
 train_loader = DataLoader(dataset=train_data, batch_size=16, shuffle=True)
 train_step = make_train_step(net, nn.MSELoss(), optim.Adam(net.parameters(), lr=0.0001))
 
@@ -37,7 +37,8 @@ for epoch in range(n_epochs):
         # device where the model "lives"
         # x_batch = x_batch.to(device)
         # y_batch = y_batch.to(device)
-
+        print(x_batch)
+        print(y_batch)
         
         loss = train_step(x_batch, y_batch)
         losses.append(loss)

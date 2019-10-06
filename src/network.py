@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from helpers import *
+from utils import *
 
 class Subpixel(nn.Module):
     def __init__(self):
