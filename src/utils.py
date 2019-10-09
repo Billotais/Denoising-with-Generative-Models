@@ -63,28 +63,20 @@ def make_train_step(model, loss_fn, optimizer):
     # Returns the function that will be called inside the train loop
     return train_step
 
+def make_test_step(model, loss_fn):
+    def test_step(x, y):
 
+        model.eval()
+        yhat = model(x)
 
-    #  transform_input = sox.Transformer()
-    #     transform_input.downsample(factor=compressed_rate)
-    #     transform_input.upsample(factor=int(compressed_rate/target_rate))
-    #     transform_input.build(filename, '/tmp/vita/source.wav')
-       
-    #     waveform_compressed, _ = torchaudio.load('/tmp/vita/source.wav')
+        loss = loss_fn(y, yhat)
 
-    #     self.x = waveform_compressed[0]
-    #     self.x = sliding_window(self.x, window, stride)
-    #     self.x = self.x[:samples, None, :]
-        
-    #     # Get the target data
+        return loss.item(), yhat
 
-    #     transform_out = sox.Transformer()
-    #     transform_out.downsample(factor=target_rate)
-    #     transform_out.build(filename, '/tmp/vita/target.wav')
+    return test_step
 
-    #     waveform_target, _ = torchaudio.load('/tmp/vita/target.wav')
+def concat_list_tensors(tensor_list):
+    out = torch.cat(tuple(tensor_list), 2)
+    return out
 
-    #     self.y = waveform_target[0]
-    #     self.y = sliding_window(self.y, window, stride)
-    #     self.y = self.y[:samples, None, :]
  
