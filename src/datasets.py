@@ -7,11 +7,11 @@ import os
 
 # The identity dataset, loads one file 
 class AudioIDDataset(Dataset):
-    def __init__(self, filename, window, stride, samples):
+    def __init__(self, filename, window, stride, samples, start=0):
         waveform, sample_rate = torchaudio.load(filename)
         input = waveform[0]
         inputs = sliding_window(input, window, stride)
-        self.x = inputs[:samples, None, :]
+        self.x = inputs[start:start+samples, None, :]
         
     def __getitem__(self, index):
         return (self.x[index], self.x[index])
@@ -21,7 +21,7 @@ class AudioIDDataset(Dataset):
 
 
 class AudioUpScalingDataset(Dataset):
-    def __init__(self, filename, window, stride, samples, compressed_rate, target_rate):
+    def __init__(self, filename, window, stride, samples, compressed_rate, target_rate, start = 0):
 
         
         os.system('mkdir /tmp/vita')
@@ -35,8 +35,7 @@ class AudioUpScalingDataset(Dataset):
 
         self.x = waveform_compressed[0]
         self.x = sliding_window(self.x, window, stride)
-        self.x = self.x[:samples, None, :] # The None adds the channel dimension
-
+        self.x = self.x[start:start+samples, None, :]
         
         # Get the target data
 
@@ -46,7 +45,9 @@ class AudioUpScalingDataset(Dataset):
 
         self.y = waveform_target[0]
         self.y = sliding_window(self.y, window, stride)
-        self.y = self.y[:samples, None, :]
+        self.y = self.y[start:start+samples, None, :]
+
+        #os.system('rm -rf /tmp/vita')
  
     def __getitem__(self, index):
         return (self.x[index], self.y[index])

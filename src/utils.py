@@ -62,3 +62,21 @@ def make_train_step(model, loss_fn, optimizer):
     
     # Returns the function that will be called inside the train loop
     return train_step
+
+def make_test_step(model, loss_fn):
+    def test_step(x, y):
+
+        model.eval()
+        yhat = model(x)
+
+        loss = loss_fn(y, yhat)
+
+        return loss.item(), yhat
+
+    return test_step
+
+def concat_list_tensors(tensor_list):
+    out = torch.cat(tuple(tensor_list), 2)
+    return out
+
+ 
