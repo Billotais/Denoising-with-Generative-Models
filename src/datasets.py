@@ -24,17 +24,19 @@ class AudioUpScalingDataset(Dataset):
     def __init__(self, filename, window, stride, samples, compressed_rate, target_rate):
 
         
-        
+        os.system('mkdir /tmp/vita')
+        os.system('cp '+ filename + ' /tmp/vita/original.wav')
         # Get the compressed data = input
         # Compress it and then upsample at the same rate as the target so the network works
-        os.system('sox '+ filename + ' -r ' + str(compressed_rate) + ' /tmp/vita/compressed.wav')
+        os.system('sox /tmp/vita/original.wav -r ' + str(compressed_rate) + ' /tmp/vita/compressed.wav')
         os.system('sox  /tmp/vita/compressed.wav -r ' + str(target_rate) + ' /tmp/vita/source.wav')
 
         waveform_compressed, _ = torchaudio.load('/tmp/vita/source.wav')
 
         self.x = waveform_compressed[0]
         self.x = sliding_window(self.x, window, stride)
-        self.x = self.x[:samples, None, :]
+        self.x = self.x[:samples, None, :] # The None adds the channel dimension
+
         
         # Get the target data
 
