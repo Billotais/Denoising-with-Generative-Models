@@ -77,3 +77,17 @@ print(out_formated.size())
 torchaudio.save("out.wav", out_formated, 10000, precision=16, channels_first=True)
 
 #%%
+
+
+# Essayer d'overfit avec un petit bout de musique
+# Ca devrait donner un bon résultat
+# Essayer de faire l'identité sans les skip connections
+# ssh nice = 19 pour pas prendre trop de cpu sur le server
+# pytorch seulement choisir 1 seul gpu
+# mettre le code pour qu'il puisse passer de gpu a cpu automatiquement en fonction d'ou on est
+
+# Trouver la source du clic-clic-clic
+# Faire un entrainnement long
+# voir si y'a pas de décalage entre in et out.
+
+
