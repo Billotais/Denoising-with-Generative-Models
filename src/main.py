@@ -90,4 +90,4 @@ torchaudio.save("out.wav", out_formated, 10000, precision=16, channels_first=Tru
 # Faire un entrainnement long
 # voir si y'a pas de décalage entre in et out.
 
-
+# Faire les slides
