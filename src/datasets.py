@@ -21,7 +21,7 @@ class AudioIDDataset(Dataset):
 
 
 class AudioUpScalingDataset(Dataset):
-    def __init__(self, filename, window, stride, samples, compressed_rate, target_rate, start = 0):
+    def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1):
 
         
         os.system('mkdir /tmp/vita')
@@ -35,7 +35,8 @@ class AudioUpScalingDataset(Dataset):
 
         self.x = waveform_compressed[0]
         self.x = sliding_window(self.x, window, stride)
-        self.x = self.x[start:start+samples, None, :]
+        self.x = self.x[:size, None, :]
+        #self.x = self.x[start:start+samples, None, :]
         
         # Get the target data
 
@@ -45,7 +46,45 @@ class AudioUpScalingDataset(Dataset):
 
         self.y = waveform_target[0]
         self.y = sliding_window(self.y, window, stride)
-        self.y = self.y[start:start+samples, None, :]
+        self.y = self.y[:, None, :]
+        #self.y = self.y[start:start+samples, None, :]
+
+        #os.system('rm -rf /tmp/vita')
+ 
+    def __getitem__(self, index):
+        return (self.x[index], self.y[index])
+
+    def __len__(self):
+        return len(self.x)
+
+
+class AudioWhiteNoiseDataset(Dataset):
+    def __init__(self, filename, window, stride, rate,  size=-1):
+
+        
+        os.system('mkdir /tmp/vita')
+        os.system('cp '+ filename + ' /tmp/vita/original.wav')
+
+        # Get the compressed data = input
+        # Compress it and then add some white noise to the audio
+        os.system('sox /tmp/vita/original.wav -r ' + str(rate) + ' /tmp/vita/compressed.wav')
+        os.system('sox /tmp/vita/compressed.wav -p synth whitenoise vol 0.01 | sox -m /tmp/vita/compressed.wav - /tmp/vita/source.wav')
+
+        waveform_noisy, _ = torchaudio.load('/tmp/vita/source.wav')
+
+        self.x = waveform_noisy[0]
+        self.x = sliding_window(self.x, window, stride)
+        self.x = self.x[:size, None, :]
+        #self.x = self.x[start:start+samples, None, :]
+        
+        # Get the target data
+
+        waveform_target, _ = torchaudio.load('/tmp/vita/compressed.wav')
+
+        self.y = waveform_target[0]
+        self.y = sliding_window(self.y, window, stride)
+        self.y = self.y[:, None, :]
+        #self.y = self.y[start:start+samples, None, :]
 
         #os.system('rm -rf /tmp/vita')
  

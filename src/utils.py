@@ -79,4 +79,20 @@ def concat_list_tensors(tensor_list):
     out = torch.cat(tuple(tensor_list), 2)
     return out
 
+def cut_and_concat_tensors(tensor_list, window, stride):
+    limit = int((window - stride) / 2)
+    
+    cut_tensors = []
+    
+    for tensor in tensor_list[1:-1]:
+        cut_tensors.append(tensor[:,:,limit:-limit])
+
+
+
+    concat = concat_list_tensors(cut_tensors)
+    concat = torch.cat((tensor_list[0][:,:,:-limit], concat), 2)
+    concat = torch.cat((concat, tensor_list[-1][:,:,limit:]), 2)
+    return concat
+
+
  
