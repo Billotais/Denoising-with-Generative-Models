@@ -269,3 +269,18 @@ def super_resolution(count, epochs, batch, window, stride, depth, in_rate, out_r
 
 if __name__ == "__main__":
     main()
+
+
+
+# Essayer d'overfit avec un petit bout de musique
+# Ca devrait donner un bon résultat
+# Essayer de faire l'identité sans les skip connections
+# ssh nice = 19 pour pas prendre trop de cpu sur le server
+# pytorch seulement choisir 1 seul gpu
+# mettre le code pour qu'il puisse passer de gpu a cpu automatiquement en fonction d'ou on est
+
+# Trouver la source du clic-clic-clic
+# Faire un entrainnement long
+# voir si y'a pas de décalage entre in et out.
+
+# Faire les slides
