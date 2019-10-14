@@ -120,7 +120,7 @@ def denoising(count, epochs, batch, window, stride, depth, rate):
             plt.plot(losses)
             plt.yscale('log')
             plt.savefig('img/loss_train_denoising.png')
-            plt.show()
+           
 
     # Validate model
     losses = []
@@ -134,7 +134,7 @@ def denoising(count, epochs, batch, window, stride, depth, rate):
         plt.plot(losses)
         plt.yscale('log')
         plt.savefig('img/loss_val_denoising.png')
-        plt.show()
+       
 
     # Load test data
     filename = "/mnt/Data/maestro-v2.0.0/2004/MIDI-Unprocessed_SMF_02_R1_2004_01-05_ORIG_MID--AUDIO_02_R1_2004_05_Track05_wav.wav"
@@ -157,7 +157,6 @@ def denoising(count, epochs, batch, window, stride, depth, rate):
         plt.plot(losses)
         plt.yscale('log')
         plt.savefig('img/loss_test_denoising.png')
-        plt.show()
         outputs.append(y_test_hat)
 
     # Save output file
@@ -214,7 +213,7 @@ def super_resolution(count, epochs, batch, window, stride, depth, in_rate, out_r
             plt.plot(losses)
             plt.yscale('log')
             plt.savefig('img/loss_train.png')
-            plt.show()
+    
             
 
     # Validation
@@ -230,7 +229,7 @@ def super_resolution(count, epochs, batch, window, stride, depth, in_rate, out_r
         plt.plot(losses)
         plt.yscale('log')
         plt.savefig('loss_val.png')
-        plt.show()
+  
 
 
     # Load test data
@@ -255,7 +254,7 @@ def super_resolution(count, epochs, batch, window, stride, depth, in_rate, out_r
         plt.plot(losses)
         plt.yscale('log')
         plt.savefig('loss_test.png')
-        plt.show()
+   
         outputs.append(y_test_hat)
 
 
