@@ -16,7 +16,6 @@ from torch.utils.data import ConcatDataset, DataLoader
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset
 from files import Files
 from network import Net
-from run import *
 from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step,
                    make_train_step)
 
@@ -81,7 +80,7 @@ def init():
         denoising(count, epochs, batch, window, stride, depth, rate, load, 'denoising')
 
     elif (args.command == 'super-resolution'):
-        in_rate = variables['int_rate']
+        in_rate = variables['in_rate']
         out_rate = variables['out_rate']
         super_resolution(count, epochs, batch, window, stride, depth, in_rate, out_rate, load, 'super-resolution')
 
@@ -247,7 +246,9 @@ def denoising(count, epochs, batch, window, stride, depth, rate, load=False, nam
     print("Output file created")
 
 
-   
+   # Trouver la source du clic-clic-clic
+# Faire un entrainnement long
+# voir si y'a pas de décalage entre in et out.
 if __name__ == "__main__":
     init()
 # Essayer d'overfit avec un petit bout de musique
