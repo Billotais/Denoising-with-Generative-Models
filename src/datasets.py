@@ -1,8 +1,10 @@
 
-from torch.utils.data import Dataset, TensorDataset
-import torchaudio
-from utils import sliding_window
 import os
+
+import torchaudio
+from torch.utils.data import Dataset, TensorDataset
+
+from utils import sliding_window
 
 
 # The identity dataset, loads one file 
@@ -24,7 +26,6 @@ class AudioUpScalingDataset(Dataset):
     def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1):
 
         
-        os.system('mkdir /tmp/vita')
         os.system('cp '+ filename + ' /tmp/vita/original.wav')
         # Get the compressed data = input
         # Compress it and then upsample at the same rate as the target so the network works
@@ -62,7 +63,6 @@ class AudioWhiteNoiseDataset(Dataset):
     def __init__(self, filename, window, stride, rate,  size=-1):
 
         
-        os.system('mkdir /tmp/vita')
         os.system('cp '+ filename + ' /tmp/vita/original.wav')
 
         # Get the compressed data = input

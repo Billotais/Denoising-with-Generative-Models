@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 def pixel_shuffle_1d(x, upscale_factor):
+    """Does the subpixel operation"""
     batch_size, channels, steps = x.size()
     channels //= upscale_factor
     input_view = x.contiguous().view(batch_size, channels, upscale_factor, steps)
@@ -10,6 +12,8 @@ def pixel_shuffle_1d(x, upscale_factor):
     return shuffle_out.view(batch_size, channels, steps * upscale_factor)
 
 def get_sizes_for_layers(B):
+    """Return filter sizes and number of filters for each layer given the 
+    total number of filter"""
     n_channels = []
     size_filters = []
     #test = []
@@ -24,6 +28,8 @@ def get_sizes_for_layers(B):
 # The input channel count is equal to the the output channel count of the previous layer
 # Input will be all the channel counts, shifted to the right with a 1 before
 def args_down(n_channels, size_filters):
+    """Generate an array with the arguments given to each layer for each creation\\
+       Downsampling layers"""
     return zip([1] + n_channels[:-1], n_channels, size_filters)
 
 # Input filter count is the size of the bottlneck for the first up layer
@@ -34,6 +40,8 @@ def args_down(n_channels, size_filters):
 # so that after the subpixel we get the same count as in the down layer
 # and we can stack them together
 def args_up(n_channels, size_filters):
+    """Generate an array with the arguments given to each layer for each creation\\
+       Upsampling layers"""
     return zip([int(n_channels[-1]/2)] + n_channels[::-1][:-1], n_channels[::-1], size_filters[::-1])
 
 
@@ -44,6 +52,7 @@ def sliding_window(x, window_size, step_size=1):
 
 
 def make_train_step(model, loss_fn, optimizer):
+
     # Builds function that performs a step in the train loop
     def train_step(x, y):
         # Sets model to TRAIN mode
@@ -64,6 +73,7 @@ def make_train_step(model, loss_fn, optimizer):
     return train_step
 
 def make_test_step(model, loss_fn):
+
     def test_step(x, y):
 
         model.eval()
@@ -93,6 +103,3 @@ def cut_and_concat_tensors(tensor_list, window, stride):
     concat = torch.cat((tensor_list[0][:,:,:-limit], concat), 2)
     concat = torch.cat((concat, tensor_list[-1][:,:,limit:]), 2)
     return concat
-
-
- 

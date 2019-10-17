@@ -5,24 +5,27 @@ import torch.nn.functional as F
 from utils import *
 
 class Subpixel(nn.Module):
+    """Subpixel module"""
     def __init__(self):
         super(Subpixel, self).__init__()
            
     def forward(self, x):
+        """Interleave two layers into only one of hoigher dimension"""
         y = pixel_shuffle_1d(x, 2)
         return y
 
 
 
 class Concat(nn.Module):
+    """Concat module"""
     def __init__(self):
         super(Concat, self).__init__()
            
         
     def forward(self, x1, x2):
+        
         y = torch.cat((x1, x2), 1) # concat on dim 1 (channel dimension)
         return y
-
 
 
 class Add(nn.Module):
