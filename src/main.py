@@ -263,3 +263,20 @@ if __name__ == "__main__":
 # voir si y'a pas de décalage entre in et out.
 
 # Faire les slides
+
+#####################################################
+
+# identité sans le "skip add"
+
+# garder downsample simple jusqu'au midterm
+# si ca marche pas, juste essayer avec bruit blanc
+
+# Overfit sur un petit bout de musique (retrouver le code git) (vraiment petit, e.g 2 samples)
+
+# entrainement long sur gpu
+
+# tourner le code avec le dataset du paper beethvoen (ajouter classe nécessaire)
+# Reéflcehir a avoir les meme résultats que le papier.
+# pyaudio pour compresion mp3 ?
+
+
