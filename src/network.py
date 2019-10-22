@@ -108,13 +108,13 @@ class LastConv(nn.Module):
         self.add = Add()
            
         
-    def forward(self, x1, x2, training):
+    def forward(self, x1, x2, training, lastskip):
         if self.verbose: print("Final before: " + str(x1.size()))
         y = self.conv(x1)
         if self.verbose: print("Final conv: " + str(y.size()))
         y = self.subpixel(y)
         if self.verbose: print("Final subpixel: " + str(y.size()))
-        y = self.add(y, x2)
+        if lastskip: y = self.add(y, x2)
         if self.verbose: print("Final add: " + str(y.size()))
         return y
 
@@ -150,12 +150,12 @@ class Net(nn.Module):
         
         
 
-    def forward(self, x):
+    def forward(self, x, lastskip=True):
 
         # Since the network is not able to automaticaly propagate the
         # "training" variable down the modules (probably because we put the modules in a list)
         # I added the "training" argument to the forward function.
-        
+
         # Downsampling
         down_out = []
         xi = x
@@ -172,7 +172,7 @@ class Net(nn.Module):
             y = self.up[i](y, down_out[-(i+1)], self.training)
             
         # Final layer
-        y = self.last(y, x, self.training)
+        y = self.last(y, x, self.training, lastskip)
        
         return y
     

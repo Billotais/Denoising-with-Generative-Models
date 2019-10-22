@@ -23,7 +23,7 @@ class AudioIDDataset(Dataset):
 
 
 class AudioUpScalingDataset(Dataset):
-    def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1):
+    def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1, start=0):
 
         
         os.system('cp '+ filename + ' /tmp/vita/original.wav')
@@ -36,7 +36,7 @@ class AudioUpScalingDataset(Dataset):
 
         self.x = waveform_compressed[0]
         self.x = sliding_window(self.x, window, stride)
-        self.x = self.x[:size, None, :]
+        self.x = self.x[start:start+size, None, :]
         #self.x = self.x[start:start+samples, None, :]
         
         # Get the target data
@@ -47,7 +47,7 @@ class AudioUpScalingDataset(Dataset):
 
         self.y = waveform_target[0]
         self.y = sliding_window(self.y, window, stride)
-        self.y = self.y[:, None, :]
+        self.y = self.y[start:start+size, None, :]
         #self.y = self.y[start:start+samples, None, :]
 
         #os.system('rm -rf /tmp/vita')

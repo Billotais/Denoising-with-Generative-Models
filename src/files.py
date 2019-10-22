@@ -1,5 +1,6 @@
 #%%
 import pandas as pd
+import os
 
 class Files():
     """Provide filenames for the dataset"""
@@ -35,7 +36,16 @@ class Files():
         return out
        
 
-f = Files("/mnt/Data/maestro-v2.0.0", 2004)
-f.get_test()
+class BeethovenFiles():
+    def __init__(self, root):
+        self.root = root
+    def get(self, count=-1):
+        files = os.listdir(self.root)
+        return files[:count]
+
+
+#%%
+btv = Files('/mnt/Data/maestro-v2.0.0')
+btv.get_test(4)
 
 #%%
