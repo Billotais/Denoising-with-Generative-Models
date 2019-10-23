@@ -385,4 +385,16 @@ if __name__ == "__main__":
 # Reéflcehir a avoir les meme résultats que le papier.
 # pyaudio pour compresion mp3 ?
 
+####################################################
+
+# Augmenter le learning rate de Adam (utiliser celui pas default)
+# Experience avec 2 samples, comparer selon les learning rates.
+# Essayer de reproduire les reulstats du papier (meme valuers de taille, epochs, reslution, etc)
+# Implementer les metrics du paper
+# sauvegearde model avec les parameetres, pas trop souvent
+# quand on load on model ajouter la possibilité de continuer e train.
+
+
+
+
 
