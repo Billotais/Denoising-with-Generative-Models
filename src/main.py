@@ -327,7 +327,7 @@ def overfit_sr():
     # Load data into batches
 
     train_loader = DataLoader(dataset=data, batch_size=16, shuffle=True)
-    train_step = make_train_step(net, nn.MSELoss(), optim.Adam(net.parameters(), lr=0.0001))
+    train_step = make_train_step(net, nn.MSELoss(), optim.Adam(net.parameters(), lr=0.0002))
     
     test_data = AudioUpScalingDataset("MIDI-Unprocessed_XP_22_R2_2004_01_ORIG_MID--AUDIO_22_R2_2004_04_Track04_wav.wav"
 , window=1024, stride=512, compressed_rate=5000, target_rate=10000, size=100)
@@ -336,7 +336,7 @@ def overfit_sr():
     test_step = make_test_step(net, nn.MSELoss())
 
     # Train model
-    n_epochs = 2048
+    n_epochs = 5000
     losses = []
     for epoch in range(n_epochs):
         for x_batch, y_batch in Bar('Training - epoch ' + str(epoch), suffix='%(percent)d%%').iter(train_loader):
