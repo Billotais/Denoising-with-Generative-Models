@@ -2,7 +2,7 @@
 import pandas as pd
 import os
 
-class Files():
+class MAESTROFiles():
     """Provide filenames for the dataset"""
     def __init__(self, root, year=-1):
         """Init dataset by setting a root"""
@@ -36,16 +36,27 @@ class Files():
         return out
        
 
-class BeethovenFiles():
-    def __init__(self, root):
+class SimpleFiles():
+    def __init__(self, root, split):
         self.root = root
+        self.files = os.listdir(self.root)
+        #print(self.files)
+        self.split = int(split*len(self.files))
     def get(self, count=-1):
-        files = os.listdir(self.root)
-        return files[:count]
+        
+        return self.files[:count]
+    def get_train(self, count=-1):
+        return self.files[:min(count, self.split)]
+
+    def get_test(self, count=-1):
+        return self.files[self.split:self.split+count]
+
+
+    
 
 
 #%%
-btv = Files('/mnt/Data/maestro-v2.0.0')
+btv = MAESTROFiles('/mnt/Data/maestro-v2.0.0')
 btv.get_test(4)
 
 #%%

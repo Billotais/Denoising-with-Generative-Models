@@ -26,13 +26,13 @@ class AudioUpScalingDataset(Dataset):
     def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1, start=0):
 
         
-        os.system('cp '+ filename + ' /tmp/vita/original.wav')
+        os.system('cp '+ filename + ' tmp/original.wav')
         # Get the compressed data = input
         # Compress it and then upsample at the same rate as the target so the network works
-        os.system('sox /tmp/vita/original.wav -r ' + str(compressed_rate) + ' /tmp/vita/compressed.wav')
-        os.system('sox  /tmp/vita/compressed.wav -r ' + str(target_rate) + ' /tmp/vita/source.wav')
+        os.system('sox tmp/original.wav -r ' + str(compressed_rate) + ' tmp/compressed.wav')
+        os.system('sox tmp/compressed.wav -r ' + str(target_rate) + ' tmp/source.wav')
 
-        waveform_compressed, _ = torchaudio.load('/tmp/vita/source.wav')
+        waveform_compressed, _ = torchaudio.load('tmp/source.wav')
 
         self.x = waveform_compressed[0]
         self.x = sliding_window(self.x, window, stride)
@@ -41,9 +41,9 @@ class AudioUpScalingDataset(Dataset):
         
         # Get the target data
 
-        os.system('sox '+ filename + ' -r ' + str(target_rate) + ' /tmp/vita/target.wav')
+        os.system('sox '+ filename + ' -r ' + str(target_rate) + ' tmp/target.wav')
 
-        waveform_target, _ = torchaudio.load('/tmp/vita/target.wav')
+        waveform_target, _ = torchaudio.load('tmp/target.wav')
 
         self.y = waveform_target[0]
         self.y = sliding_window(self.y, window, stride)
@@ -63,14 +63,14 @@ class AudioWhiteNoiseDataset(Dataset):
     def __init__(self, filename, window, stride, rate,  size=-1):
 
         
-        os.system('cp '+ filename + ' /tmp/vita/original.wav')
+        os.system('cp '+ filename + ' tmp/original.wav')
 
         # Get the compressed data = input
         # Compress it and then add some white noise to the audio
-        os.system('sox /tmp/vita/original.wav -r ' + str(rate) + ' /tmp/vita/compressed.wav')
-        os.system('sox /tmp/vita/compressed.wav -p synth whitenoise vol 0.01 | sox -m /tmp/vita/compressed.wav - /tmp/vita/source.wav')
+        os.system('sox tmp/original.wav -r ' + str(rate) + ' tmp/compressed.wav')
+        os.system('sox tmp/compressed.wav -p synth whitenoise vol 0.01 | sox -m tmp/compressed.wav - tmp/source.wav')
 
-        waveform_noisy, _ = torchaudio.load('/tmp/vita/source.wav')
+        waveform_noisy, _ = torchaudio.load('tmp/source.wav')
 
         self.x = waveform_noisy[0]
         self.x = sliding_window(self.x, window, stride)
@@ -79,7 +79,7 @@ class AudioWhiteNoiseDataset(Dataset):
         
         # Get the target data
 
-        waveform_target, _ = torchaudio.load('/tmp/vita/compressed.wav')
+        waveform_target, _ = torchaudio.load('tmp/compressed.wav')
 
         self.y = waveform_target[0]
         self.y = sliding_window(self.y, window, stride)
