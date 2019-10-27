@@ -21,8 +21,8 @@ def snr(x, y):
 def lsd(x, y, channel=0):
 
     spectogram = torchaudio.transforms.Spectrogram(n_fft=1024) # value of paper
-    X = torch.log2(spectogram(x))
-    X_hat = torch.log2(spectogram(y))
+    X = torch.log10(spectogram(x))
+    X_hat = torch.log10(spectogram(y))
 
     #X = (channels, k freq, l frames)
     K = X.size()[1] # number of frequencies

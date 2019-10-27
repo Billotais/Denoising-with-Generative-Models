@@ -75,7 +75,7 @@ def make_train_step(model, loss_fn, optimizer):
 def make_test_step(model, loss_fn):
 
     def test_step(x, y):
-
+        
         model.eval()
         yhat = model(x)
 

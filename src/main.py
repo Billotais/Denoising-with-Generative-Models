@@ -103,6 +103,7 @@ def init():
 
 
 def init_net(depth):
+    
     net = Net(depth, verbose = 0)
 
     if torch.cuda.is_available():
@@ -121,6 +122,7 @@ def denoising_dataset(filename, window, stride, rate):
 def identity_dataset(filename, window, stride, rate):
     return AudioIDDataset(ROOT + filename, window,stride,-1)
 def get_dataset_fn(name):
+   
     if name == 'upscaling': return upscaling_dataset
     if name == 'denoising': return denoising_dataset
     if name == 'identity': return identity_dataset
@@ -182,7 +184,9 @@ def train(model, loader, epochs, count, name, loss, optim, device):
             if (count % 100 == 0): plt.savefig('img/'+name+'_train.png')
         bar.finish()
         plt.savefig('img/'+name+'_train.png')
-        if (epoch % 5 == 0): torch.save(model.state_dict(), "models/" + name + ".pt")
+        if (epoch % 5 == 0): 
+            torch.save(model, "models/" + name + ".pt")
+            #torch.save(model.state_dict(), "models/" + name + ".pt")
     print("Model trained")
     plt.clf()
 
@@ -194,19 +198,18 @@ def test(model, loader, count, name, loss,  device):
     losses = []
     outputs = []
     bar = Bar('Testing', max=count)
-    for x_test, y_test in loader:
-        x_test = x_test.to(device)
-        y_test = y_test.to(device)
+    with torch.no_grad():
+        for x_test, y_test in loader:
+            x_test = x_test.to(device)
+            y_test = y_test.to(device)
 
-        loss, y_test_hat = test_step(x_test, y_test)
-        losses.append(loss)
-
-       
-   
-        outputs.append(y_test_hat)
-        bar.next()
-        if (count > 0 and len(losses) >= count ): break
-    bar.finish()
+            loss, y_test_hat = test_step(x_test, y_test)
+            losses.append(loss)
+    
+            outputs.append(y_test_hat)
+            bar.next()
+            if (count > 0 and len(losses) >= count ): break
+        bar.finish()
     plt.plot(losses)
     plt.yscale('log')
     plt.savefig('img/'+name+'_test.png')
@@ -216,11 +219,7 @@ def test(model, loader, count, name, loss,  device):
 def create_output_audio(outputs, rate, name, window, stride, batch):
     #outputs = [torch.flatten(x, 0)[None, None, :] for x in outputs]# addedd to hansdle batches in output 
     outputs = [torch.chunk(x, batch, dim=0) for x in outputs]
-    print(outputs)
     outputs = [val for sublist in outputs for val in sublist]
-    print(len(outputs))
-    for x in outputs:
-        print(x.size())
     out = cut_and_concat_tensors(outputs, window, stride)
     out_formated = out.reshape((1, out.size()[2]))
     torchaudio.save("out/"+name+".wav", out_formated, rate, precision=16, channels_first=True)
@@ -234,7 +233,10 @@ def super_resolution(count, out, epochs, batch, window, stride, depth, in_rate, 
 
     adam = optim.Adam(net.parameters(), lr=0.0001)
 
-    if load: net.load_state_dict(torch.load("models/" + name + ".pt"))
+    if load: 
+        net = torch.load("models/" + name + ".pt")
+        net.eval()
+
     else: train(model=net, loader = train_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     
 
@@ -259,8 +261,8 @@ def denoising(count, out, epochs, batch, window, stride, depth, rate, train_n, t
    
     adam = optim.Adam(net.parameters(), lr=0.0001)
     if load: 
-        #net = Net(depth)
-        net.load_state_dict(torch.load("models/" + name + ".pt"))
+        net = torch.load("models/" + name + ".pt")
+        net.eval()
     else: train(model=net, loader = train_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     print("Model trained")
 
@@ -284,8 +286,8 @@ def identity(count, out, epochs, batch, window, stride, depth, rate, train_n, te
    
     adam = optim.Adam(net.parameters(), lr=0.0001)
     if load: 
-        net = Net(depth)
-        net.load_state_dict(torch.load("models/" + name + ".pt"))
+        net = torch.load("models/" + name + ".pt")
+        net.eval()
     else: train(model=net, loader = train_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     print("Model trained")
       

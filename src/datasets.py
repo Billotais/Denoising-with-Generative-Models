@@ -9,13 +9,16 @@ from utils import sliding_window
 
 # The identity dataset, loads one file 
 class AudioIDDataset(Dataset):
+    
     def __init__(self, filename, window, stride, samples, start=0):
+       
         waveform, sample_rate = torchaudio.load(filename)
         input = waveform[0]
         inputs = sliding_window(input, window, stride)
         self.x = inputs[start:start+samples, None, :]
         
     def __getitem__(self, index):
+
         return (self.x[index], self.x[index])
 
     def __len__(self):
@@ -24,6 +27,7 @@ class AudioIDDataset(Dataset):
 
 class AudioUpScalingDataset(Dataset):
     def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1, start=0):
+        
 
         
         os.system('cp '+ filename + ' tmp/original.wav')
