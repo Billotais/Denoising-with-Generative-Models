@@ -21,11 +21,11 @@ from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step,
                    make_train_step)
 
 ROOT = "/mnt/Data/maestro-v2.0.0/"
-ROOT = "/mnt/Data/Beethoven/"
-#ROOT = "/data/lois-data/Beethoven/"
+#ROOT = "/mnt/Data/Beethoven/"
+ROOT = "/data/lois-data/Beethoven/"
 
 torch.set_default_tensor_type('torch.FloatTensor')
-#torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
+torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
 def init():
 
     #os.system('mkdir /tmp/vita')
@@ -139,8 +139,8 @@ def load_data(year=-1, train_n=-1, test_n=-1, dataset="beethoven", preprocess='u
     test_n : number of files used as test data
     val_n : number of files used as val data
     """
-    f = SimpleFiles("/mnt/Data/Beethoven/", 0.9)
-    #f = SimpleFiles("/data/lois-data/Beethoven/", 0.9)
+    #f = SimpleFiles("/mnt/Data/Beethoven/", 0.9)
+    f = SimpleFiles("/data/lois-data/Beethoven/", 0.9)
     if dataset == 'maestro': f = MAESTROFiles("/mnt/Data/maestro-v2.0.0", year)
 
  
@@ -172,7 +172,12 @@ def train(model, loader, epochs, count, name, loss, optim, device):
     cuda = torch.cuda.is_available()
     losses = []
     for epoch in range(epochs):
-        bar = progressbar.ProgressBar(max_value=count, redirect_stdout=True)
+        total = len(loader)
+        print(total)
+        bar = None
+        if count < 0: bar = progressbar.ProgressBar(max_value=total)
+        else :  bar = progressbar.ProgressBar(max_value=count, redirect_stdout=True)
+        curr_count = 0
         #bar = Bar('Training', max=count)
         for x_batch, y_batch in loader:
             #print(cuda)
@@ -187,9 +192,10 @@ def train(model, loader, epochs, count, name, loss, optim, device):
             plt.yscale('log')
             
             #bar.next()
-            bar.update(len(losses))
+            curr_count += 1
+            bar.update(curr_count)
             #print("epoch " + str(epoch))
-            if (count > 0 and len(losses) >= count*(epoch+1)): break
+            if (count > 0 and curr_count >= count): break
             if (count % 100 == 0): plt.savefig('img/'+name+'_train.png')
         #bar.finish()
         plt.savefig('img/'+name+'_train.png')
@@ -204,18 +210,20 @@ def test(model, loader, count, name, loss,  device):
 
     # Test model
 
+    cuda = torch.cuda.is_available()
     losses = []
     outputs = []
     bar = Bar('Testing', max=count)
     with torch.no_grad():
         for x_test, y_test in loader:
+            if cuda: model.cuda()
             x_test = x_test.to(device)
             y_test = y_test.to(device)
 
             loss, y_test_hat = test_step(x_test, y_test)
             losses.append(loss)
     
-            outputs.append(y_test_hat)
+            outputs.append(y_test_hat.to('cpu'))
             bar.next()
             if (count > 0 and len(losses) >= count ): break
         bar.finish()
