@@ -11,6 +11,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchaudio
 from progress.bar import Bar
+import progressbar
 from torch.utils.data import ConcatDataset, DataLoader
 
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDataset
@@ -21,10 +22,10 @@ from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step,
 
 ROOT = "/mnt/Data/maestro-v2.0.0/"
 ROOT = "/mnt/Data/Beethoven/"
-ROOT = "/data/lois-data/Beethoven/"
+#ROOT = "/data/lois-data/Beethoven/"
 
 torch.set_default_tensor_type('torch.FloatTensor')
-torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
+#torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
 def init():
 
     #os.system('mkdir /tmp/vita')
@@ -138,8 +139,8 @@ def load_data(year=-1, train_n=-1, test_n=-1, dataset="beethoven", preprocess='u
     test_n : number of files used as test data
     val_n : number of files used as val data
     """
-    #f = SimpleFiles("/mnt/Data/Beethoven/", 0.9)
-    f = SimpleFiles("/data/lois-data/Beethoven/", 0.9)
+    f = SimpleFiles("/mnt/Data/Beethoven/", 0.9)
+    #f = SimpleFiles("/data/lois-data/Beethoven/", 0.9)
     if dataset == 'maestro': f = MAESTROFiles("/mnt/Data/maestro-v2.0.0", year)
 
  
@@ -171,9 +172,10 @@ def train(model, loader, epochs, count, name, loss, optim, device):
     cuda = torch.cuda.is_available()
     losses = []
     for epoch in range(epochs):
-        bar = Bar('Training', max=count)
+        bar = progressbar.ProgressBar(max_value=count, redirect_stdout=True)
+        #bar = Bar('Training', max=count)
         for x_batch, y_batch in loader:
-            print(cuda)
+            #print(cuda)
             if cuda: model.cuda()
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
@@ -184,10 +186,12 @@ def train(model, loader, epochs, count, name, loss, optim, device):
             plt.plot(losses)
             plt.yscale('log')
             
-            bar.next()
+            #bar.next()
+            bar.update(len(losses))
+            #print("epoch " + str(epoch))
             if (count > 0 and len(losses) >= count*(epoch+1)): break
             if (count % 100 == 0): plt.savefig('img/'+name+'_train.png')
-        bar.finish()
+        #bar.finish()
         plt.savefig('img/'+name+'_train.png')
         if (epoch % 5 == 0): 
             torch.save(model, "models/" + name + ".pt")
