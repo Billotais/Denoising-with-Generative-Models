@@ -21,6 +21,10 @@ from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step,
 
 ROOT = "/mnt/Data/maestro-v2.0.0/"
 ROOT = "/mnt/Data/Beethoven/"
+ROOT = "/data/lois-data/Beethoven/"
+
+torch.set_default_tensor_type('torch.FloatTensor')
+torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
 def init():
 
     #os.system('mkdir /tmp/vita')
@@ -134,8 +138,8 @@ def load_data(year=-1, train_n=-1, test_n=-1, dataset="beethoven", preprocess='u
     test_n : number of files used as test data
     val_n : number of files used as val data
     """
-
-    f = SimpleFiles("/mnt/Data/Beethoven/", 0.9)
+    #f = SimpleFiles("/mnt/Data/Beethoven/", 0.9)
+    f = SimpleFiles("/data/lois-data/Beethoven/", 0.9)
     if dataset == 'maestro': f = MAESTROFiles("/mnt/Data/maestro-v2.0.0", year)
 
  
@@ -164,12 +168,13 @@ def train(model, loader, epochs, count, name, loss, optim, device):
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     train_step = make_train_step(model, loss, optim)
-
+    cuda = torch.cuda.is_available()
     losses = []
     for epoch in range(epochs):
         bar = Bar('Training', max=count)
         for x_batch, y_batch in loader:
-
+            print(cuda)
+            if cuda: model.cuda()
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             

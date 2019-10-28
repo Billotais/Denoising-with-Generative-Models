@@ -54,9 +54,3 @@ class SimpleFiles():
 
     
 
-
-#%%
-btv = MAESTROFiles('/mnt/Data/maestro-v2.0.0')
-btv.get_test(4)
-
-#%%
