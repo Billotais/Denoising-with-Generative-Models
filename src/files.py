@@ -46,8 +46,9 @@ class SimpleFiles():
         
         return self.files[:count]
     def get_train(self, count=-1):
-        return self.files[:min(count, self.split)]
-
+        return self.files[:min(count, self.split)][:-1]
+    def get_validation(self, count=-1):
+        return self.files[:min(count, self.split)][-1]
     def get_test(self, count=-1):
         return self.files[self.split:self.split+count]
 
