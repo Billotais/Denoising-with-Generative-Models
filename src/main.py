@@ -153,10 +153,10 @@ def load_data(year=-1, train_n=-1, test_n=-1, val_n=-1, dataset="beethoven", pre
     print(names_val)
     datasets_train = [get_dataset_fn(preprocess)(n, *args) for n in names_train]
     datasets_test = [get_dataset_fn(preprocess)(n, *args) for n in names_test]
-    datasets_val = [get_dataset_fn(dataset)(n, *args) for n in names_val]
+    #datasets_val = [get_dataset_fn(dataset)(n, *args) for n in names_val]
     data_train = ConcatDataset(datasets_train)
     data_test = ConcatDataset(datasets_test)
-    data_val = ConcatDataset(datasets_val)
+    data_train, data_val = torch.utils.data.random_split(ConcatDataset(data_train), [len(data_train)-10, 10])
     train_loader = DataLoader(dataset=data_train, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(dataset=data_test, batch_size=batch_size, shuffle=False)
     val_loader = DataLoader(dataset=data_val, batch_size=batch_size, shuffle=True)
