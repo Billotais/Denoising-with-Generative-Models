@@ -149,8 +149,8 @@ def load_data(year=-1, train_n=-1, test_n=-1, val_n=-1, dataset="beethoven", pre
     names_test = f.get_test(test_n)
     print("Test files : " + str(names_test))
 
-    names_val = f.get_validation(val_n)
-    print(names_val)
+    #names_val = f.get_validation(val_n)
+    #print(names_val)
     datasets_train = [get_dataset_fn(preprocess)(n, *args) for n in names_train]
     datasets_test = [get_dataset_fn(preprocess)(n, *args) for n in names_test]
     #datasets_val = [get_dataset_fn(dataset)(n, *args) for n in names_val]
@@ -185,18 +185,19 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
         curr_count = 0
 
         for x_batch, y_batch in loader:
+            bar.update(curr_count)
             if cuda: model.cuda()
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             
             # Train using the current bathc
             loss = train_step(x_batch, y_batch)
-            losses.append(loss)
             # Stop if count reached
             curr_count += 1
             if (curr_count >= count): break
-            # Update image every 100 batches
-            if (count % 100 == 0): 
+            # Update image every 100 mini-batches
+            if (curr_count % 100 == 0):
+                losses.append(loss)
                 plt.plot(losses)
                 plt.yscale('log')
                 plt.savefig('img/'+name+'_train.png')
@@ -331,7 +332,7 @@ def identity(count, out, epochs, batch, window, stride, depth, rate, train_n, te
     if load: 
         net = torch.load("models/" + name + ".pt")
         net.eval()
-    else: train(model=net, loader = train_loader, val=val_loader, val = val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
+    else: train(model=net, loader = train_loader,  val = val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     print("Model trained")
       
 
