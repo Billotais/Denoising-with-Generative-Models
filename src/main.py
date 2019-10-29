@@ -280,7 +280,7 @@ def super_resolution(count, out, epochs, batch, window, stride, depth, in_rate, 
         net = torch.load("models/" + name + ".pt")
         net.eval()
 
-    else: train(model=net, loader = train_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
+    else: train(model=net, loader = train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     
 
 
@@ -306,7 +306,7 @@ def denoising(count, out, epochs, batch, window, stride, depth, rate, train_n, t
     if load: 
         net = torch.load("models/" + name + ".pt")
         net.eval()
-    else: train(model=net, loader = train_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
+    else: train(model=net, loader = train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     print("Model trained")
 
 
@@ -331,7 +331,7 @@ def identity(count, out, epochs, batch, window, stride, depth, rate, train_n, te
     if load: 
         net = torch.load("models/" + name + ".pt")
         net.eval()
-    else: train(model=net, loader = train_loader, val = val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
+    else: train(model=net, loader = train_loader, val=val_loader, val = val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     print("Model trained")
       
 
