@@ -132,7 +132,7 @@ def get_dataset_fn(name):
     if name == 'denoising': return denoising_dataset
     if name == 'identity': return identity_dataset
 
-def load_data(year=-1, train_n=-1, test_n=-1, dataset="beethoven", preprocess='upscaling', batch_size=16, args=[]):
+def load_data(year=-1, train_n=-1, test_n=-1, val_n=-1, dataset="beethoven", preprocess='upscaling', batch_size=16, args=[]):
     
     """
     train_n : number of files used as train data
@@ -149,59 +149,85 @@ def load_data(year=-1, train_n=-1, test_n=-1, dataset="beethoven", preprocess='u
     names_test = f.get_test(test_n)
     print("Test files : " + str(names_test))
 
-    # names_val = f.get_validation(val_n)
-    # print(names_val)
+    names_val = f.get_validation(val_n)
+    print(names_val)
     datasets_train = [get_dataset_fn(preprocess)(n, *args) for n in names_train]
     datasets_test = [get_dataset_fn(preprocess)(n, *args) for n in names_test]
-    # datasets_val = [get_dataset_fn(dataset)(n, *args) for n in names_val]
+    datasets_val = [get_dataset_fn(dataset)(n, *args) for n in names_val]
     data_train = ConcatDataset(datasets_train)
     data_test = ConcatDataset(datasets_test)
-    # data_val = ConcatDataset(datasets_val)
+    data_val = ConcatDataset(datasets_val)
     train_loader = DataLoader(dataset=data_train, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(dataset=data_test, batch_size=batch_size, shuffle=False)
-    # val_loader = DataLoader(dataset=data_val, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(dataset=data_val, batch_size=batch_size, shuffle=True)
 
     print("Data loaded")
-    return train_loader, test_loader#, val_loader
+    return train_loader, test_loader, val_loader
 
    
-def train(model, loader, epochs, count, name, loss, optim, device):
+def train(model, loader, val, epochs, count, name, loss, optim, device):
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     train_step = make_train_step(model, loss, optim)
+    test_step = make_test_step(model, loss)
+
     cuda = torch.cuda.is_available()
     losses = []
+    val_avg_loss = []
     for epoch in range(epochs):
+
+        # correct the count variable if needed
         total = len(loader)
-        print(total)
-        bar = None
-        if count < 0: bar = progressbar.ProgressBar(max_value=total)
-        else :  bar = progressbar.ProgressBar(max_value=count, redirect_stdout=True)
+        if (total < count or count < 0): 
+            count = total 
+        
+        bar = progressbar.ProgressBar(max_value=count)
         curr_count = 0
-        #bar = Bar('Training', max=count)
+
         for x_batch, y_batch in loader:
-            #print(cuda)
             if cuda: model.cuda()
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             
+            # Train using the current bathc
             loss = train_step(x_batch, y_batch)
             losses.append(loss)
-
-            plt.plot(losses)
-            plt.yscale('log')
-            
-            #bar.next()
+            # Stop if count reached
             curr_count += 1
-            bar.update(curr_count)
-            #print("epoch " + str(epoch))
-            if (count > 0 and curr_count >= count): break
-            if (count % 100 == 0): plt.savefig('img/'+name+'_train.png')
-        #bar.finish()
-        plt.savefig('img/'+name+'_train.png')
-        if (epoch % 5 == 0): 
-            torch.save(model, "models/" + name + ".pt")
-            #torch.save(model.state_dict(), "models/" + name + ".pt")
+            if (curr_count >= count): break
+            # Update image every 100 batches
+            if (count % 100 == 0): 
+                plt.plot(losses)
+                plt.yscale('log')
+                plt.savefig('img/'+name+'_train.png')
+                plt.clf()
+        # Update image final time
+        plt.plot(losses)
+        plt.yscale('log')
+        plt.savefig('img/'+name+'_train.png') 
+        plt.clf()       
+
+        # Save the model for the epoch
+        torch.save(model, "models/" + name + "-" + str(epoch) + ".pt")
+
+        # Validate model for this epoch
+        val_losses = []
+        for x_val, y_val in val:
+            if cuda: model.cuda()
+            x_val = x_val.to(device)
+            y_val = y_val.to(device)
+
+            loss, _ = test_step(x_val, y_val)
+            val_losses.append(loss)
+
+        # Plot the validation graph
+        val_avg_loss.append(sum(val_losses)/len(val_losses))
+        plt.plot(val_avg_loss)
+        plt.yscale('log')
+        plt.savefig('img/'+name+'_val.png') 
+        plt.clf() 
+
+        
     print("Model trained")
     plt.clf()
 
@@ -246,7 +272,7 @@ def super_resolution(count, out, epochs, batch, window, stride, depth, in_rate, 
     # Init net and cuda
     net, device = init_net(depth)
     # Open data, split train and val set
-    train_loader, test_loader = load_data(train_n=train_n, test_n=test_n, dataset=dataset, preprocess='upscaling', batch_size=batch, args=[window, stride, in_rate, out_rate])
+    train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, preprocess='upscaling', batch_size=batch, args=[window, stride, in_rate, out_rate])
 
     adam = optim.Adam(net.parameters(), lr=0.0001)
 
@@ -261,7 +287,7 @@ def super_resolution(count, out, epochs, batch, window, stride, depth, in_rate, 
     # val(model=net, loader=val_loader, count=500, name=name, loss=nn.MSELoss(), device=device)
     # print("Model validated")        
 
-    outputs = test(model=net, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
+    outputs = test(model=net, loader=test_loader, val = val_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 
@@ -273,7 +299,7 @@ def denoising(count, out, epochs, batch, window, stride, depth, rate, train_n, t
     print("Network initialized")
     # Open data, split train and val set
 
-    train_loader, test_loader = load_data(train_n=train_n, test_n=test_n, dataset=dataset, preprocess='denoising', batch_size=batch,args=[window, stride, rate])
+    train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, preprocess='denoising', batch_size=batch,args=[window, stride, rate])
     print("Data loaded")
    
     adam = optim.Adam(net.parameters(), lr=0.0001)
@@ -287,7 +313,7 @@ def denoising(count, out, epochs, batch, window, stride, depth, rate, train_n, t
     # val(model=net, loader=val_loader, count=500, name=name, loss=nn.MSELoss(), device=device)
     # print("Model validated")        
 
-    outputs = test(model=net, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
+    outputs = test(model=net, loader=test_loader, val = val_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
     create_output_audio(outputs = outputs, rate=rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 
@@ -298,14 +324,14 @@ def identity(count, out, epochs, batch, window, stride, depth, rate, train_n, te
     print("Network initialized")
     # Open data, split train and val set
 
-    train_loader, test_loader = load_data(train_n=train_n, test_n=test_n, dataset=dataset, preprocess='identity', batch_size=batch, args=[window, stride, rate])
+    train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, preprocess='identity', batch_size=batch, args=[window, stride, rate])
     print("Data loaded")
    
     adam = optim.Adam(net.parameters(), lr=0.0001)
     if load: 
         net = torch.load("models/" + name + ".pt")
         net.eval()
-    else: train(model=net, loader = train_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
+    else: train(model=net, loader = train_loader, val = val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     print("Model trained")
       
 
