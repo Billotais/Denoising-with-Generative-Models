@@ -3,10 +3,11 @@ import torch
 import math
 import argparse
 def metric(file1, file2, size, metric):
-
-
     audio1, _ = torchaudio.load(file1)
     audio2, _ = torchaudio.load(file2)
+    
+    if (size == -1): size = min(audio1.size()[1], audio2.size()[1])
+    #print(audio1.size())
     if metric == 'snr':
         return snr(audio1[:,:size], audio2[:,:size])
     elif metric == 'lsd':
@@ -15,15 +16,19 @@ def metric(file1, file2, size, metric):
 # Look at the noise of the signal
 def snr(x, y):
      
-    return 10*math.log10(torch.norm(y, p=2) / pow(torch.dist(x, y, p=2),2))
+    return 10*math.log10(pow(torch.norm(y, p=2),2) /pow(torch.dist(x, y, p=2), 2))
+    #return 10*math.log10(torch.norm(y, p=2) /torch.dist(x, y, p=2))
     
 # look at the presence of specific frequencies
 def lsd(x, y, channel=0):
 
     spectogram = torchaudio.transforms.Spectrogram(n_fft=1024) # value of paper
-    X = torch.log10(torch.pow(spectogram(x),2))
-    X_hat = torch.log10(torch.pow(spectogram(y),2))
 
+    X = torch.log10(spectogram(x))
+    X_hat = torch.log10(spectogram(y))
+    # the spectrogram is the magnitude squared of the stft
+    # the paper used log |stft|^2
+    # => we just need to use the log
     #X = (channels, k freq, l frames)
     K = X.size()[1] # number of frequencies
     L = X.size()[2] # number of frames
