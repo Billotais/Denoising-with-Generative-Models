@@ -408,6 +408,20 @@ if __name__ == "__main__":
 # sauvegearde model avec les parameetres, pas trop souvent
 # quand on load on model ajouter la possibilité de continuer e train.
 
+###################################################3
+
+# Regarder si je peux run le code du paper
+# Essayer de run le maestro dataset (quelques musiques, chanson calme).
+
+
+
+# essayer de scale *1000 pour l'overfit pour eviter les artefacts à la fin sur maestro
+# training normal maestro
+# Augmentation : noise + reverberation. Pouvoir chosiri avec arguments (quaniité, un des deux ou les deux, ...)
+# -> avoir un module de preprocessing, ou on choisit quelle combinaison de bruit, downsampling, reverb on veut.
+# reverb cpu en priorité
+
+# regarder code du paper pour le piano pour essayer de trouver quels fichier utiliser pour loverfit
 
 
 
