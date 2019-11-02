@@ -185,6 +185,7 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
         curr_count = 0
 
         for x_batch, y_batch in loader:
+            bar.update(value=curr_count)
             if cuda: model.cuda()
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
@@ -201,6 +202,7 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
                 plt.yscale('log')
                 plt.savefig('img/'+name+'_train.png')
                 plt.clf()
+            
         # Update image final time
         plt.plot(losses)
         plt.yscale('log')
