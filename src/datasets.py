@@ -6,6 +6,8 @@ from torch.utils.data import Dataset, TensorDataset
 
 from utils import sliding_window
 
+from preprocessing import preprocess
+
 
 # The identity dataset, loads one file 
 class AudioIDDataset(Dataset):
@@ -28,33 +30,20 @@ class AudioIDDataset(Dataset):
 class AudioUpScalingDataset(Dataset):
     def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1, start=0):
         
+        in_file = sample(filename, compressed_rate, target_rate)
+        out_file = sample(filename, target_rate, target_rate)
 
-        
-        os.system('cp '+ filename + ' tmp/original.wav')
-        # Get the compressed data = input
-        # Compress it and then upsample at the same rate as the target so the network works
-        os.system('sox tmp/original.wav -r ' + str(compressed_rate) + ' tmp/compressed.wav')
-        os.system('sox tmp/compressed.wav -r ' + str(target_rate) + ' tmp/source.wav')
+        waveform_in, _ = torchaudio.load('tmp/' + in_file)
 
-        waveform_compressed, _ = torchaudio.load('tmp/source.wav')
-
-        self.x = waveform_compressed[0]
+        self.x = waveform_in[0]
         self.x = sliding_window(self.x, window, stride)
         self.x = self.x[start:start+size, None, :]
-        #self.x = self.x[start:start+samples, None, :]
-        
-        # Get the target data
 
-        os.system('sox '+ filename + ' -r ' + str(target_rate) + ' tmp/target.wav')
+        waveform_out, _ =  torchaudio.load('tmp/' + out_file)
 
-        waveform_target, _ = torchaudio.load('tmp/target.wav')
-
-        self.y = waveform_target[0]
+        self.y = waveform_out[0]
         self.y = sliding_window(self.y, window, stride)
         self.y = self.y[start:start+size, None, :]
-        #self.y = self.y[start:start+samples, None, :]
-
-        #os.system('rm -rf /tmp/vita')
  
     def __getitem__(self, index):
         return (self.x[index], self.y[index])
@@ -92,6 +81,31 @@ class AudioWhiteNoiseDataset(Dataset):
 
         #os.system('rm -rf /tmp/vita')
  
+    def __getitem__(self, index):
+        return (self.x[index], self.y[index])
+
+    def __len__(self):
+        return len(self.x)
+
+
+class AudioDataset(Dataset):
+    def __init__(self, filename, window, stride, arguments, size=-1, start=0):
+
+        in_file, out_file = preprocess(filename, arguments.split(','))
+
+
+        waveform_in, _ = torchaudio.load(in_file)
+
+        self.x = waveform_in[0]
+        self.x = sliding_window(self.x, window, stride)
+        self.x = self.x[start:start+size, None, :]
+
+        waveform_out, _ =  torchaudio.load(out_file)
+
+        self.y = waveform_out[0]
+        self.y = sliding_window(self.y, window, stride)
+        self.y = self.y[start:start+size, None, :]
+
     def __getitem__(self, index):
         return (self.x[index], self.y[index])
 
