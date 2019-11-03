@@ -23,7 +23,7 @@ from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step,
 ROOT = "/mnt/Data/maestro-v2.0.0/"
 #ROOT = "/mnt/Data/Beethoven/"
 ROOT = "/data/lois-data/Beethoven/"
-
+ROOT = "/data/lois-data/models/maestro/"
 torch.set_default_tensor_type('torch.FloatTensor')
 #torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
 def init():
@@ -140,7 +140,8 @@ def load_data(year=-1, train_n=-1, test_n=-1, val_n=-1, dataset="beethoven", pre
     val_n : number of files used as val data
     """
     #f = SimpleFiles("/mnt/Data/Beethoven/", 0.9)
-    f = SimpleFiles("/data/lois-data/Beethoven/", 0.9)
+    #f = SimpleFiles("/data/lois-data/Beethoven/", 0.9)
+    f = SimpleFiles("/data/lois-data/models/maestro/", 0.9)
     if dataset == 'maestro': f = MAESTROFiles("/mnt/Data/maestro-v2.0.0", year)
 
  
@@ -183,7 +184,7 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
         
         bar = progressbar.ProgressBar(max_value=count)
         curr_count = 0
-
+        temp_losses = []
         for x_batch, y_batch in loader:
             bar.update(curr_count)
             if cuda: model.cuda()
@@ -192,12 +193,14 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
             
             # Train using the current bathc
             loss = train_step(x_batch, y_batch)
+            temp_losses.append(loss)
             # Stop if count reached
             curr_count += 1
             if (curr_count >= count): break
             # Update image every 100 mini-batches
             if (curr_count % 100 == 0):
-                losses.append(loss)
+                losses.append(sum(temp_losses)/100)
+                temp_losses = []
                 plt.plot(losses)
                 plt.yscale('log')
                 plt.savefig('img/'+name+'_train.png')
@@ -289,7 +292,7 @@ def super_resolution(count, out, epochs, batch, window, stride, depth, in_rate, 
     # val(model=net, loader=val_loader, count=500, name=name, loss=nn.MSELoss(), device=device)
     # print("Model validated")        
 
-    outputs = test(model=net, loader=test_loader, val = val_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
+    outputs = test(model=net, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 
