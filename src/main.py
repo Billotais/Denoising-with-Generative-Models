@@ -25,7 +25,7 @@ ROOT = "/mnt/Data/maestro-v2.0.0/"
 ROOT = "/data/lois-data/Beethoven/"
 
 torch.set_default_tensor_type('torch.FloatTensor')
-torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
+#torch.set_default_tensor_type('torch.cuda.FloatTensor')  # Uncomment this to run on GPU
 def init():
 
     #os.system('mkdir /tmp/vita')
@@ -149,8 +149,8 @@ def load_data(year=-1, train_n=-1, test_n=-1, val_n=-1, dataset="beethoven", pre
     names_test = f.get_test(test_n)
     print("Test files : " + str(names_test))
 
-    names_val = f.get_validation(val_n)
-    print(names_val)
+    #names_val = f.get_validation(val_n)
+    #print(names_val)
     datasets_train = [get_dataset_fn(preprocess)(n, *args) for n in names_train]
     datasets_test = [get_dataset_fn(preprocess)(n, *args) for n in names_test]
     #datasets_val = [get_dataset_fn(dataset)(n, *args) for n in names_val]
@@ -185,19 +185,19 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
         curr_count = 0
 
         for x_batch, y_batch in loader:
-            bar.update(value=curr_count)
+            bar.update(curr_count)
             if cuda: model.cuda()
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             
             # Train using the current bathc
             loss = train_step(x_batch, y_batch)
-            losses.append(loss)
             # Stop if count reached
             curr_count += 1
             if (curr_count >= count): break
-            # Update image every 100 batches
-            if (count % 100 == 0): 
+            # Update image every 100 mini-batches
+            if (curr_count % 100 == 0):
+                losses.append(loss)
                 plt.plot(losses)
                 plt.yscale('log')
                 plt.savefig('img/'+name+'_train.png')
@@ -333,7 +333,7 @@ def identity(count, out, epochs, batch, window, stride, depth, rate, train_n, te
     if load: 
         net = torch.load("models/" + name + ".pt")
         net.eval()
-    else: train(model=net, loader = train_loader, val=val_loader, val = val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
+    else: train(model=net, loader = train_loader,  val = val_loader, epochs=epochs, count=count, name=name, loss=nn.MSELoss(), optim=adam, device=device)
     print("Model trained")
       
 
@@ -350,7 +350,7 @@ def overfit_sr():
     # Load data into batches
     train_loader = DataLoader(dataset=data, batch_size=16, shuffle=True)
     train_step = make_train_step(net, nn.MSELoss(), optim.Adam(net.parameters(), lr=0.0002))
-    test_data = AudioUpScalingDataset("MIDI-Unprocessed_XP_22_R2_2004_01_ORIG_MID--AUDIO_22_R2_2004_04_Track04_wav.wav", window=1024, stride=512, compressed_rate=5000, target_rate=10000, size=100)
+    test_data = AudioUpScalingDataset("/mnt/Data/maestro-v2.0.0/2004/MIDI-Unprocessed_XP_22_R2_2004_01_ORIG_MID--AUDIO_22_R2_2004_04_Track04_wav.wav", window=1024, stride=512, compressed_rate=5000, target_rate=10000, size=100)
     test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False)
     test_step = make_test_step(net, nn.MSELoss())
     # Train model
@@ -359,8 +359,8 @@ def overfit_sr():
     for epoch in range(n_epochs):
         for x_batch, y_batch in Bar('Training - epoch ' + str(epoch), suffix='%(percent)d%%').iter(train_loader):
 
-            x_batch = x_batch.to(device)
-            y_batch = y_batch.to(device)
+            x_batch = x_batch.to(device)*1000
+            y_batch = y_batch.to(device)*1000
             
             loss = train_step(x_batch, y_batch)
             losses.append(loss)
@@ -409,6 +409,20 @@ if __name__ == "__main__":
 # sauvegearde model avec les parameetres, pas trop souvent
 # quand on load on model ajouter la possibilité de continuer e train.
 
+###################################################3
+
+# Regarder si je peux run le code du paper
+# Essayer de run le maestro dataset (quelques musiques, chanson calme).
+
+
+
+# essayer de scale *1000 pour l'overfit pour eviter les artefacts à la fin sur maestro
+# training normal maestro
+# Augmentation : noise + reverberation. Pouvoir chosiri avec arguments (quaniité, un des deux ou les deux, ...)
+# -> avoir un module de preprocessing, ou on choisit quelle combinaison de bruit, downsampling, reverb on veut.
+# reverb cpu en priorité
+
+# regarder code du paper pour le piano pour essayer de trouver quels fichier utiliser pour loverfit
 
 
 
