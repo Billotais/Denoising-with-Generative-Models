@@ -39,7 +39,8 @@ class MAESTROFiles():
 class SimpleFiles():
     def __init__(self, root, split):
         self.root = root
-        self.files = os.listdir(self.root)
+        self.files = list(map(lambda x: root+"/"+x, os.listdir(self.root)))
+        
         #print(self.files)
         self.split = int(split*len(self.files))
     def get(self, count=-1):

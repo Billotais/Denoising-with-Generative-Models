@@ -89,9 +89,9 @@ class AudioWhiteNoiseDataset(Dataset):
 
 
 class AudioDataset(Dataset):
-    def __init__(self, filename, window, stride, arguments, size=-1, start=0):
-
-        in_file, out_file = preprocess(filename, arguments.split(','))
+    def __init__(self, run_name, filename, window, stride, arguments, size=-1, start=0):
+        #print("filename : " + filename)
+        in_file, out_file = preprocess(run_name, filename, arguments.split(','))
 
 
         waveform_in, _ = torchaudio.load(in_file)

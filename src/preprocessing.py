@@ -7,13 +7,13 @@ from pysndfx import AudioEffectsChain
 from datetime import datetime
 
 def sample(filename_x, filename_y, audio_rate, file_rate):
-    name_x = filename_x.split('.')[0] + "_rate_" + str(audio_rate) + "_x." + filename_x.split('.')[1]
+    name_x = filename_x.split('.')[0] + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[1]
     # Get the compressed data = input
     # Compress it and then upsample at the same rate as the target so the network works
     os.system('sox ' + filename_x + ' -r ' + str(audio_rate) + ' tmp/compressed.wav')
     os.system('sox tmp/compressed.wav -r ' + str(file_rate) + " " + name_x)
 
-    name_y = filename_y.split('.')[0] + "_rate_" + str(file_rate) + "_y." + filename_y.split('.')[1]
+    name_y = filename_y.split('.')[0] + "-rate_" + str(file_rate) + "_y." + filename_y.split('.')[1]
     # Compress it at the target rate directly
     os.system('sox ' + filename_y + ' -r ' + str(file_rate) + " " + name_y)
 
@@ -24,7 +24,7 @@ def sample(filename_x, filename_y, audio_rate, file_rate):
 
 def whitenoise(filename_x, filename_y, intensity):
    
-    name = filename_x.split('.')[0] + "_white_noise_" + str(intensity) + "." + filename_x.split('.')[1]
+    name = filename_x.split('.')[0] + "-white_noise_" + str(intensity) + "." + filename_x.split('.')[1]
     os.system("sox " + filename_x + " tmp/noise.wav synth whitenoise vol " + str(intensity) + " && sox -m " + filename_x + " tmp/noise.wav " + name + "")
 
 
@@ -42,21 +42,21 @@ def reverb(filename_x, filename_y, reverberance=80, hf_damping=100, room_scale=1
         # .delay()
         # .lowshelf()
     )
-    name = filename_x.split('.')[0] + "_reverb." + filename_x.split('.')[1]
+    name = filename_x.split('.')[0] + "-reverb." + filename_x.split('.')[1]
     fx(filename_x, name)
     return name, filename_y
 
 
-def preprocess(filename, arguments):
-    now = datetime.now()
-    date_time = now.strftime("%m_%d_%Y-%H:%M:%S")
+def preprocess(run_name, filename, arguments):
+    # now = datetime.now()
+    # date_time = now.strftime("%m_%d_%Y-%H:%M:%S")
 
-    folder = "tmp/" + filename.split('.')[0]  + "-" + date_time
+    folder = "tmp/" + run_name
     os.system("mkdir " + folder)
-    os.system('cp '+ filename + ' ' + folder + '/original.wav')
+    os.system('cp '+ filename + ' ' + folder + '/' + filename.split('/')[-1])
 
-    file_x = folder + "/original.wav"
-    file_y = folder + "/original.wav"
+    file_x = folder + "/" + filename.split('/')[-1]
+    file_y = folder + "/" + filename.split('/')[-1]
 
     for command in arguments:
         args = command.split(' ')
@@ -78,7 +78,7 @@ def preprocess(filename, arguments):
 # print(sample("in.wav", 5000, 10000))
 # print(whitenoise("in.wav", 0.005))
 
-print(preprocess("in.wav", ["sample 5000 10000", "whitenoise 0.005"]))
+# print(preprocess("in.wav", ["sample 5000 10000", "whitenoise 0.005"]))
 #print(preprocess("in.wav", ["reverb"]))
 
 
