@@ -59,13 +59,16 @@ def preprocess(run_name, filename, arguments):
     file_y = folder + "/" + filename.split('/')[-1]
 
     for command in arguments:
-        args = command.split(' ')
+        
+        args = command.strip().split(' ')
+        print(args)
         if args[0] == "sample":
             file_x, file_y = sample(file_x, file_y, *args[1:])
         if args[0] == "whitenoise":
             file_x, file_y = whitenoise(file_x, file_y, *args[1:])
-        if args[0] == "reverb":
-            file_x, file_y = reverb(file_x, file_y, *args[1:])
+        if args[0] == "reverb": # "reverb sample_rate *reverb_args"
+            file_x, file_y = reverb(file_x, file_y, *args[2:])
+            file_x, file_y = sample(file_x, file_y, args[1], args[1])
 
 
 
