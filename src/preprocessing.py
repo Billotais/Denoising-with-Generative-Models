@@ -6,6 +6,8 @@ from pysndfx import AudioEffectsChain
 
 from datetime import datetime
 
+noises = ["whitenoise", "pinknoise", "brownnoise", "tpdfnoise"]
+
 def sample(filename_x, filename_y, audio_rate, file_rate):
     name_x = ".".join(filename_x.split('.')[:-1]) + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[-1]
     # Get the compressed data = input
@@ -21,17 +23,18 @@ def sample(filename_x, filename_y, audio_rate, file_rate):
 
     return name_x, name_y
 
+def noise(filename_x, filename_y, noise_type, intensity):
+    if noise_type not in noises: 
+        print(noise_type + " is not a valid noise type !")
+        return filename_x, filename_y
 
-def whitenoise(filename_x, filename_y, intensity):
-   
-    name = ".".join(filename_x.split('.')[:-1]) + "-white_noise_" + str(intensity) + "." + filename_x.split('.')[-1]
+    name = ".".join(filename_x.split('.')[:-1]) + "-" + noise_type + "_" + str(intensity) + "." + filename_x.split('.')[-1]
     print(name)
-    os.system("sox " + filename_x + " tmp/noise.wav synth whitenoise vol " + str(intensity) + " && sox -m " + filename_x + " tmp/noise.wav " + name + "")
-
-
+    os.system("sox " + filename_x + " tmp/noise.wav synth " + noise_type + " vol " + str(intensity) + " && sox -m " + filename_x + " tmp/noise.wav " + name + "")
 
     os.system("rm tmp/noise.wav -f")
     return name, filename_y
+
 
 def reverb(filename_x, filename_y, reverberance=80, hf_damping=100, room_scale=100, stereo_depth=100, pre_delay=40, wet_gain=0, wet_only=False):
 
@@ -65,10 +68,9 @@ def preprocess(run_name, filename, arguments):
         args = command.strip().split(' ')
         print(args)
         if args[0] == "sample":
-            
             file_x, file_y = sample(file_x, file_y, *args[1:])
-        if args[0] == "whitenoise":
-            file_x, file_y = whitenoise(file_x, file_y, *args[1:])
+        if args[0] in noises:
+            file_x, file_y = noise(file_x, file_y, *args)
         if args[0] == "reverb": # "reverb sample_rate *reverb_args"
             file_x, file_y = reverb(file_x, file_y, *args[2:])
             file_x, file_y = sample(file_x, file_y, args[1], args[1])
