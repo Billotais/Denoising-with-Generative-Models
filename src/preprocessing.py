@@ -7,7 +7,7 @@ from pysndfx import AudioEffectsChain
 from datetime import datetime
 
 def sample(filename_x, filename_y, audio_rate, file_rate):
-    name_x = filename_x.split('.')[0] + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[1]
+    name_x = ".".join(filename_x.split('.')[:-1]) + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[-1]
     # Get the compressed data = input
     # Compress it and then upsample at the same rate as the target so the network works
     os.system('sox ' + filename_x + ' -r ' + str(audio_rate) + ' tmp/compressed.wav')
@@ -24,8 +24,10 @@ def sample(filename_x, filename_y, audio_rate, file_rate):
 
 def whitenoise(filename_x, filename_y, intensity):
    
-    name = filename_x.split('.')[0] + "-white_noise_" + str(intensity) + "." + filename_x.split('.')[1]
+    name = ".".join(filename_x.split('.')[:-1]) + "-white_noise_" + str(intensity) + "." + filename_x.split('.')[-1]
+    print(name)
     os.system("sox " + filename_x + " tmp/noise.wav synth whitenoise vol " + str(intensity) + " && sox -m " + filename_x + " tmp/noise.wav " + name + "")
+
 
 
     os.system("rm tmp/noise.wav -f")
@@ -42,7 +44,7 @@ def reverb(filename_x, filename_y, reverberance=80, hf_damping=100, room_scale=1
         # .delay()
         # .lowshelf()
     )
-    name = filename_x.split('.')[0] + "-reverb." + filename_x.split('.')[1]
+    name = ".".join(filename_x.split('.')[:-1]) + "-reverb." + filename_x.split('.')[-1]
     fx(filename_x, name)
     return name, filename_y
 
