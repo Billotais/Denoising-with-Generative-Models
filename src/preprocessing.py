@@ -61,6 +61,7 @@ def preprocess(run_name, filename, arguments):
     for command in arguments:
         args = command.split(' ')
         if args[0] == "sample":
+            
             file_x, file_y = sample(file_x, file_y, *args[1:])
         if args[0] == "whitenoise":
             file_x, file_y = whitenoise(file_x, file_y, *args[1:])
