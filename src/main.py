@@ -362,8 +362,6 @@ if __name__ == "__main__":
 # Regarder si je peux run le code du paper
 # Essayer de run le maestro dataset (quelques musiques, chanson calme).
 
-
-
 # essayer de scale *1000 pour l'overfit pour eviter les artefacts à la fin sur maestro
 # training normal maestro
 # Augmentation : noise + reverberation. Pouvoir chosiri avec arguments (quaniité, un des deux ou les deux, ...)
@@ -371,6 +369,24 @@ if __name__ == "__main__":
 # reverb cpu en priorité
 
 # regarder code du paper pour le piano pour essayer de trouver quels fichier utiliser pour loverfit
+
+###################################################
+
+# Verifier que la reverb sox est bien alignée avec le fichier orginal
+
+# Run le code du paper sur mon propre split
+# Run mon code avec les meme inputs que eux
+
+# faire les slides
+    # click click
+    # deux dataset
+    # ajouter gan ?
+    # essayé de refaire le paper
+    # reverb / noise / super-res
+    # schéma du network, skip connection
+    #  
+
+
 
 
 

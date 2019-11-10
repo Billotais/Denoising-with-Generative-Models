@@ -1,12 +1,12 @@
 #%%
 import pyroomacoustics as pra
-room = pra.ShoeBox([9, 7.5, 3.5], fs=44100, absorption=0.35, max_order=17)
+import numpy as np
+room = pra.ShoeBox([9, 7.5, 3.5], fs=10000, absorption=0.35, max_order=17)
 #%%
 # import a mono wavfile as the source signal
 # the sampling frequency should match that of the room
 from scipy.io import wavfile
 _, audio = wavfile.read('in.wav')
-
 
 my_source = pra.SoundSource([2.5, 3.73, 1.76], signal=audio, delay=1.3)
 
