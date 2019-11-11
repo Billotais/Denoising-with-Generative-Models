@@ -8,6 +8,9 @@ from datetime import datetime
 
 noises = ["whitenoise", "pinknoise", "brownnoise", "tpdfnoise"]
 
+from random import gauss, seed
+seed(111)
+
 def sample(filename_x, filename_y, audio_rate, file_rate):
     name_x = ".".join(filename_x.split('.')[:-1]) + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[-1]
     # Get the compressed data = input
@@ -23,11 +26,12 @@ def sample(filename_x, filename_y, audio_rate, file_rate):
 
     return name_x, name_y
 
-def noise(filename_x, filename_y, noise_type, intensity):
+def noise(filename_x, filename_y, variance, noise_type, intensity):
     if noise_type not in noises: 
         print(noise_type + " is not a valid noise type !")
         return filename_x, filename_y
 
+    intensity += gauss(0, variance)
     name = ".".join(filename_x.split('.')[:-1]) + "-" + noise_type + "_" + str(intensity) + "." + filename_x.split('.')[-1]
     print(name)
     os.system("sox " + filename_x + " tmp/noise.wav synth " + noise_type + " vol " + str(intensity) + " && sox -m " + filename_x + " tmp/noise.wav " + name + "")
@@ -36,9 +40,15 @@ def noise(filename_x, filename_y, noise_type, intensity):
     return name, filename_y
 
 
-def reverb(filename_x, filename_y, reverberance=80, hf_damping=100, room_scale=100, stereo_depth=100, pre_delay=40, wet_gain=0, wet_only=False):
+def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, room_scale=100, stereo_depth=100, pre_delay=40, wet_gain=0, wet_only=False):
 
-
+    reverberance += gauss(0, variance)
+    hf_damping += gauss(0, variance)
+    room_scale += gauss(0, variance)
+    stereo_depth += gauss(0, variance)
+    pre_delay += gauss(0, variance)
+    wet_gain += gauss(0, variance)
+    
     fx = (
         AudioEffectsChain()
         # .highshelf()
