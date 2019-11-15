@@ -6,6 +6,11 @@ from pysndfx import AudioEffectsChain
 
 from datetime import datetime
 
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import wavfile
+from scipy.signal import fftconvolve
+import pyroomacoustics as pra
 noises = ["whitenoise", "pinknoise", "brownnoise", "tpdfnoise"]
 
 from random import gauss, seed
@@ -60,6 +65,8 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
     name = ".".join(filename_x.split('.')[:-1]) + "-reverb." + filename_x.split('.')[-1]
     fx(filename_x, name)
     return name, filename_y
+
+def reverb_room(filename_x, filename_y):
 
 
 def preprocess(run_name, filename, arguments):
