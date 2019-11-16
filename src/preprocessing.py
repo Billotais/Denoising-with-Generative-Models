@@ -74,10 +74,13 @@ def preprocess(run_name, filename, arguments):
         if args[0] == "reverb": # "reverb sample_rate *reverb_args"
             file_x, file_y = reverb(file_x, file_y, *args[2:])
             file_x, file_y = sample(file_x, file_y, args[1], args[1])
+    
+    file_x_wav = file_x.split(".")[-2] + ".wav"
+    file_y_wav = file_y.split(".")[-2] + ".wav"
+    os.system("sox " + file_x + " " + file_x_wav)
+    os.system("sox " + file_y + " " + file_y_wav)
 
-
-
-    return file_x, file_y
+    return file_x_wav, file_y_wav
 
 
 
