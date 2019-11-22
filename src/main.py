@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import torch
@@ -19,6 +20,7 @@ from files import MAESTROFiles, SimpleFiles
 from network import Net
 from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step,
                    make_train_step)
+import numpy as np
 
 ROOT = "/mnt/Data/maestro-v2.0.0/"
 #ROOT = "/mnt/Data/Beethoven/"
@@ -43,6 +45,7 @@ def init():
     ap.add_argument("-s", "--stride", help="stride of the sliding window, default 1024", type=int, default=1024)
     ap.add_argument("-d", "--depth", help="number of layers of the network, default 4", type=int, default=4)
     ap.add_argument("-n", "--name",  required=True, help="name of model", type=str)
+    ap.add_argument("--dropout", help="value fo the dropout in the entwork", type=float, default=0.5)
     ap.add_argument("--train_n", help="number of songs used to train, default 1", type=int, default=1)
     ap.add_argument("--test_n", help="number of songs used to test, default 1", type=int, default=1)
     ap.add_argument("--load",  help="load already trained model to evaluate ? 0 or 1, default 0", type=int, default=0)
@@ -57,8 +60,9 @@ def init():
 
 
 
-    print("salut")
+    
     args = ap.parse_args()
+    
     variables = vars(args)
 
     print(variables)
@@ -86,9 +90,20 @@ def init():
     rate = variables['rate']
     preprocessing = variables['preprocessing']
     name = variables['name']
+    dropout = variables['dropout']
     
 
-    pipeline(count, out, epochs, batch, window, stride, depth, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing)
+    os.system("rm -rf out/" + name)
+    os.system("mkdir out/" + name)
+    os.system("mkdir out/" + name + "/models")
+    os.system("mkdir out/" + name + "/tmp")
+
+    #os.system(" ".join(sys.argv) + " > " + name + "/command")
+
+    with open("out/" + name + "/command", "w") as text_file:
+        text_file.write(" ".join(sys.argv))
+    #print("".join(sys.argv))
+    pipeline(count, out, epochs, batch, window, stride, depth, dropout, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing)
     
 
 
@@ -96,9 +111,9 @@ def init():
 
 
 
-def init_net(depth):
+def init_net(depth, dropout):
     
-    net = Net(depth, verbose = 0)
+    net = Net(depth, dropout, verbose = 0)
 
     if torch.cuda.is_available():
         net.cuda()
@@ -144,6 +159,7 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
     names_test = f.get_test(test_n)
     print("Test files : " + str(names_test))
 
+
     #names_val = f.get_validation(val_n)
     #print(names_val)
 
@@ -170,9 +186,14 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
 
     cuda = torch.cuda.is_available()
     losses = []
-    val_avg_loss = []
-    for epoch in range(epochs):
+    val_losses = []
 
+   
+
+    for epoch in range(1, epochs+1):
+
+
+        epoch_loss = []
         # correct the count variable if needed
         total = len(loader)
         if (total < count or count < 0): 
@@ -180,7 +201,6 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
         
         bar = progressbar.ProgressBar(max_value=count)
         curr_count = 0
-        temp_losses = []
         for x_batch, y_batch in loader:
             bar.update(curr_count)
             if cuda: model.cuda()
@@ -189,30 +209,15 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
             
             # Train using the current bathc
             loss = train_step(x_batch, y_batch)
-            temp_losses.append(loss)
+            epoch_loss.append(loss)
             # Stop if count reached
             curr_count += 1
             if (curr_count >= count): break
-            # Update image every 100 mini-batches
-            if (curr_count % 100 == 0):
-                losses.append(sum(temp_losses)/100)
-                temp_losses = []
-                plt.plot(losses)
-                plt.yscale('log')
-                plt.savefig('img/'+name+'_train.png')
-                plt.clf()
             
-        # Update image final time
-        plt.plot(losses)
-        plt.yscale('log')
-        plt.savefig('img/'+name+'_train.png') 
-        plt.clf()       
+            
 
-        # Save the model for the epoch
-        torch.save(model, "models/" + name + "-" + str(epoch) + ".pt")
-
-        # Validate model for this epoch
-        val_losses = []
+        losses.append(sum(epoch_loss)/len(epoch_loss))
+        
         for x_val, y_val in val:
             if cuda: model.cuda()
             x_val = x_val.to(device)
@@ -221,12 +226,43 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
             loss, _ = test_step(x_val, y_val)
             val_losses.append(loss)
 
-        # Plot the validation graph
-        val_avg_loss.append(sum(val_losses)/len(val_losses))
-        plt.plot(val_avg_loss)
+        
+
+        # Save the model for the epoch
+        if (epoch % 10 == 0):
+            torch.save(model, "out/" + name + "/models/model_" + str(epoch) + ".pt")
+            np.save('out/' + name + '/loss_train.npy', np.array(losses))
+            np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
+
+        plt.plot(losses, label='Train loss')
+        plt.plot(val_losses, label='Test loss')
         plt.yscale('log')
-        plt.savefig('img/'+name+'_val.png') 
-        plt.clf() 
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        plt.legend()
+
+        plt.savefig('out/'+name+'/loss.png', bbox_inches='tight')
+        plt.clf()
+
+        plt.plot(losses, label='Train loss')
+        plt.yscale('log')
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        plt.legend()
+
+        plt.savefig('out/'+name+'/loss_train.png', bbox_inches='tight')
+        plt.clf()
+
+        plt.plot(val_losses, label='Test loss')
+        plt.yscale('log')
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        plt.legend()
+
+        plt.savefig('out/'+name+'/loss_test.png', bbox_inches='tight')
+        plt.clf()
+
+        
 
         
     print("Model trained")
@@ -256,7 +292,7 @@ def test(model, loader, count, name, loss,  device):
         bar.finish()
     plt.plot(losses)
     plt.yscale('log')
-    plt.savefig('img/'+name+'_test.png')
+    plt.savefig('out/'+name+'/test.png')
     plt.clf()
     return outputs
 
@@ -266,11 +302,11 @@ def create_output_audio(outputs, rate, name, window, stride, batch):
     outputs = [val for sublist in outputs for val in sublist]
     out = cut_and_concat_tensors(outputs, window, stride)
     out_formated = out.reshape((1, out.size()[2]))
-    torchaudio.save("out/"+name+".wav", out_formated, rate, precision=16, channels_first=True)
+    torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=16, channels_first=True)
 
-def pipeline(count, out, epochs, batch, window, stride, depth, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing):
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing):
     # Init net and cuda
-    net, device = init_net(depth)
+    net, device = init_net(depth, dropout)
     # Open data, split train and val set
     train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, dataset_args=dataset_args, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
 
@@ -278,7 +314,7 @@ def pipeline(count, out, epochs, batch, window, stride, depth, out_rate, train_n
     loss = nn.MSELoss()
 
     if load: 
-        net = torch.load("models/" + name + ".pt")
+        net = torch.load("out/" + name + "models/model.pt")
         net.eval()
 
     else: train(model=net, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim=adam, device=device)

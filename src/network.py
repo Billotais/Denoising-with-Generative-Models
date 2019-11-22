@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils import *
+DROPOUT = 0.5
 
 class Subpixel(nn.Module):
     """Subpixel module"""
@@ -63,7 +64,7 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.verbose = verbose
         self.conv =  nn.Conv1d(in_channels=ch, out_channels=ch, kernel_size=size, stride=2, padding_mode='zeros', padding = int((size-1)/2))
-        self.dropout = nn.Dropout(0.5, )
+        self.dropout = nn.Dropout(DROPOUT)
         self.relu = nn.LeakyReLU(0.2)
       
         
@@ -82,7 +83,7 @@ class Upsampling(nn.Module):
         super(Upsampling, self).__init__()
         self.verbose = verbose
         self.conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=size, stride=1, padding_mode='zeros', padding = int((size-1)/2))
-        self.dropout = nn.Dropout(p=0.5)
+        self.dropout = nn.Dropout(p=DROPOUT)
         self.relu = nn.ReLU()
         self.subpixel = Subpixel()
         self.concat = Concat()
@@ -122,10 +123,11 @@ class LastConv(nn.Module):
 
 class Net(nn.Module):
 
-    def __init__(self, depth, verbose=0):
+    def __init__(self, depth, dropout, verbose=0):
         super(Net, self).__init__()
 
-        
+        global  DROPOUT
+        DROPOUT = dropout
         self.verbose = verbose
         
         B = depth
