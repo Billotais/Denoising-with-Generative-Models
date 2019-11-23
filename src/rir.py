@@ -1,32 +1,21 @@
 #%%
 import pyroomacoustics as pra
 import numpy as np
-room = pra.ShoeBox([9, 7.5, 3.5], fs=10000, absorption=0.35, max_order=17)
 #%%
 # import a mono wavfile as the source signal
 # the sampling frequency should match that of the room
 from scipy.io import wavfile
-_, audio = wavfile.read('in.wav')
+fs, signal = wavfile.read("input.wav")
+#room = pra.ShoeBox([9, 7.5, 3.5], fs=10000, absorption=0.35, max_order=17)
 
-my_source = pra.SoundSource([2.5, 3.73, 1.76], signal=audio, delay=1.3)
+corners = np.array([[0,0], [0,3], [5,3], [5,1], [3,1], [3,0]]).T  # [x,y]
+room = pra.Room.from_corners(corners, fs=fs, max_order=1, absorption=0.2)
+room.extrude(2.)
+room.add_source([1., 1., 0.5], signal=signal)
 
-# place the source in the room
-room.add_source(my_source)
-
-#%%
-# # define the location of the array
-import numpy as np
-R = np.c_[
-    [6.3, 4.87, 1.2],  # mic 1
-    [6.3, 4.93, 1.2],  # mic 2
-    ]
-
-# the fs of the microphones is the same as the room
-mic_array = pra.MicrophoneArray(R, room.fs)
-
-# finally place the array in the room
-room.add_microphone_array(mic_array)
-
+# add two-microphone array
+R = np.array([[3.5, 3.6], [2., 2.], [0.5,  0.5]])  # [[x], [y], [z]]
+room.add_microphone_array(pra.MicrophoneArray(R, room.fs))
 #%%
 room.compute_rir()
 
@@ -40,3 +29,7 @@ room.simulate()
 
 # plot signal at microphone 1
 plt.plot(room.mic_array.signals[1,:])
+
+wavfile.write("out_reverb.wav", fs, room.mic_array.signals[0,:])
+
+# %%
