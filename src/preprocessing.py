@@ -22,7 +22,6 @@ def sample(filename_x, filename_y, audio_rate, file_rate):
     # Compress it and then upsample at the same rate as the target so the network works
     os.system('sox ' + filename_x + ' -r ' + str(audio_rate) + ' tmp/compressed.wav')
     os.system('sox tmp/compressed.wav -r ' + str(file_rate) + " " + name_x)
-
     name_y = filename_y.split('.')[0] + "-rate_" + str(file_rate) + "_y." + filename_y.split('.')[1]
     # Compress it at the target rate directly
     os.system('sox ' + filename_y + ' -r ' + str(file_rate) + " " + name_y)
@@ -38,7 +37,6 @@ def noise(filename_x, filename_y, variance, noise_type, intensity):
 
     intensity += gauss(0, variance)
     name = ".".join(filename_x.split('.')[:-1]) + "-" + noise_type + "_" + str(intensity) + "." + filename_x.split('.')[-1]
-    print(name)
     os.system("sox " + filename_x + " tmp/noise.wav synth " + noise_type + " vol " + str(intensity) + " && sox -m " + filename_x + " tmp/noise.wav " + name + "")
 
     os.system("rm tmp/noise.wav -f")
@@ -66,15 +64,20 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
     fx(filename_x, name)
     return name, filename_y
 
+<<<<<<< HEAD
 def reverb_room(filename_x, filename_y):
     corners = np.array([[0,0], [0,3], [5,3], [5,1], [3,1], [3,0]]).T  # [x,y]
+=======
+
+
+>>>>>>> ce4001ad402a4ac5102db57fc3d738ad58cfd8b9
 
 def preprocess(run_name, filename, arguments):
     # now = datetime.now()
     # date_time = now.strftime("%m_%d_%Y-%H:%M:%S")
 
-    folder = "tmp/" + run_name
-    os.system("mkdir " + folder)
+    folder = "out/" + run_name + "/tmp"
+    
     os.system('cp '+ filename + ' ' + folder + '/' + filename.split('/')[-1])
 
     file_x = folder + "/" + filename.split('/')[-1]
@@ -83,7 +86,7 @@ def preprocess(run_name, filename, arguments):
     for command in arguments:
         
         args = command.strip().split(' ')
-        print(args)
+        #print(args)
         if args[0] == "sample":
             file_x, file_y = sample(file_x, file_y, *args[1:])
         if args[0] in noises:
@@ -91,9 +94,13 @@ def preprocess(run_name, filename, arguments):
         if args[0] == "reverb": # "reverb sample_rate *reverb_args"
             file_x, file_y = reverb(file_x, file_y, *args[2:])
             file_x, file_y = sample(file_x, file_y, args[1], args[1])
+    
+    # file_x_wav = file_x.split(".")[-2] + ".wav"
+    # file_y_wav = file_y.split(".")[-2] + ".wav"
+    # os.system("sox " + file_x + " " + file_x_wav)
+    # os.system("sox " + file_y + " " + file_y_wav)
 
-
-
+    # return file_x_wav, file_y_wav
     return file_x, file_y
 
 

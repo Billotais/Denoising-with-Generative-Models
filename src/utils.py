@@ -72,6 +72,25 @@ def make_train_step(model, loss_fn, optimizer):
     # Returns the function that will be called inside the train loop
     return train_step
 
+def make_train_step_gan(generator, discriminator, loss_g, logg_d, optimizer_g, operation_d):
+
+    def train_step(x, y):
+
+        optimizer_g.zero_grad()
+
+        generator.train()
+        # Generate output
+        yhat = generator(x)
+        # Loss of generator : L_l2 + lambda*(-log(D(G(x)))) = L_l2 + lambda*(-log(D(yhat)))
+        loss_g = loss_g(y, yhat, discriminator(yhat))
+        loss_g.backward()
+        optimizer_g.step()
+
+
+
+        operation_d.zero_grad()
+
+
 def make_test_step(model, loss_fn):
 
     def test_step(x, y):
