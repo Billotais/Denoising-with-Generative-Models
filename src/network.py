@@ -40,10 +40,10 @@ class Add(nn.Module):
 
 
 
-class Downsampling(nn.Module):
+class Downsampling_G(nn.Module):
     
     def __init__(self, in_ch, out_ch, size, verbose=0):
-        super(Downsampling, self).__init__()
+        super(Downsampling_G, self).__init__()
         self.verbose = verbose
         self.conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=size, stride=2, padding_mode='zeros', padding=int((size-1)/2))
         self.relu = nn.LeakyReLU(0.2)
@@ -59,9 +59,9 @@ class Downsampling(nn.Module):
 
 
 
-class Bottleneck(nn.Module):
+class Bottleneck_G(nn.Module):
     def __init__(self, ch, size, verbose=0):
-        super(Bottleneck, self).__init__()
+        super(Bottleneck_G, self).__init__()
         self.verbose = verbose
         self.conv =  nn.Conv1d(in_channels=ch, out_channels=ch, kernel_size=size, stride=2, padding_mode='zeros', padding = int((size-1)/2))
         self.dropout = nn.Dropout(DROPOUT)
@@ -78,9 +78,9 @@ class Bottleneck(nn.Module):
 
 
 
-class Upsampling(nn.Module):
+class Upsampling_G(nn.Module):
     def __init__(self, in_ch, out_ch, size, verbose=0):
-        super(Upsampling, self).__init__()
+        super(Upsampling_G, self).__init__()
         self.verbose = verbose
         self.conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=size, stride=1, padding_mode='zeros', padding = int((size-1)/2))
         self.dropout = nn.Dropout(p=DROPOUT)
@@ -100,9 +100,9 @@ class Upsampling(nn.Module):
 
 
 
-class LastConv(nn.Module):
+class LastConv_G(nn.Module):
     def __init__(self, in_ch, size, verbose=0):
-        super(LastConv, self).__init__()
+        super(LastConv_G, self).__init__()
         self.verbose = verbose
         self.conv = nn.Conv1d(in_channels=in_ch, out_channels=2, kernel_size=9, stride=1, padding_mode='zeros', padding = int((size-1)/2))
         self.subpixel = Subpixel()
@@ -121,10 +121,10 @@ class LastConv(nn.Module):
 
 
 
-class Net(nn.Module):
+class Generator(nn.Module):
 
     def __init__(self, depth, dropout, verbose=0):
-        super(Net, self).__init__()
+        super(Generator, self).__init__()
 
         global  DROPOUT
         DROPOUT = dropout
@@ -136,18 +136,18 @@ class Net(nn.Module):
         # Downsampling
         self.down = []
         for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters):
-            self.down.append(Downsampling(n_ch_in, n_ch_out, size, verbose))
+            self.down.append(Downsampling_G(n_ch_in, n_ch_out, size, verbose))
             
         # Bottlneck
-        self.bottleneck = Bottleneck(n_channels[-1], size_filters[-1], verbose)
+        self.bottleneck = Bottleneck_G(n_channels[-1], size_filters[-1], verbose)
         
         # Upsampling
         self.up = []
         for n_ch_in, n_ch_out, size in args_up(n_channels, size_filters):
-            self.up.append(Upsampling(n_ch_in*2, n_ch_out*2, size, verbose))
+            self.up.append(Upsampling_G(n_ch_in*2, n_ch_out*2, size, verbose))
               
         # Final layer
-        self.last = LastConv(n_channels[0]*2, 9, verbose)
+        self.last = LastConv_G(n_channels[0]*2, 9, verbose)
         
         
         
@@ -175,6 +175,63 @@ class Net(nn.Module):
             
         # Final layer
         y = self.last(y, x, self.training, lastskip)
+       
+        return y
+
+#############################################################################################
+
+class Downsampling_D(nn.Module):
+
+    
+    def __init__(self, in_ch, out_ch, size, verbose=0):
+        super(Downsampling_D, self).__init__()
+        self.verbose = verbose
+        self.conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=size, stride=2, padding_mode='zeros', padding=int((size-1)/2))
+        self.batchnorm = nn.BatchNorm1d(out_ch)
+        self.relu = nn.LeakyReLU(0.2)
+        
+        
+    def forward(self, x, training):
+        if self.verbose: print("Before conv down : " + str(x.size()))
+        y = self.conv(x)
+        y = self.batchnorm(y)
+        y = self.relu(y)
+        if self.verbose: print("After conv down : " + str(y.size()))
+        return y
+
+class Discriminator(nn.Module):
+    def __init__(self, depth, dropout, verbose=0):
+        super(Discriminator, self).__init__()
+
+        global  DROPOUT
+        DROPOUT = dropout
+        self.verbose = verbose
+        
+        B = depth
+        n_channels, size_filters = get_sizes_for_layers(B)
+        
+        # Downsampling
+        self.down = []
+        for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters):
+            self.down.append(Downsampling_D(n_ch_in, n_ch_out, size, verbose))
+            
+        
+        
+        
+        
+
+    def forward(self, x, lastskip=True):
+
+        # Since the network is not able to automaticaly propagate the
+        # "training" variable down the modules (probably because we put the modules in a list)
+        # I added the "training" argument to the forward function.
+
+        # Downsampling
+        y = x
+        for i in range(len(self.down)):
+            y = self.down[i](y, self.training)
+            
+       
        
         return y
     

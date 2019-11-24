@@ -64,13 +64,8 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
     fx(filename_x, name)
     return name, filename_y
 
-<<<<<<< HEAD
-def reverb_room(filename_x, filename_y):
-    corners = np.array([[0,0], [0,3], [5,3], [5,1], [3,1], [3,0]]).T  # [x,y]
-=======
 
 
->>>>>>> ce4001ad402a4ac5102db57fc3d738ad58cfd8b9
 
 def preprocess(run_name, filename, arguments):
     # now = datetime.now()

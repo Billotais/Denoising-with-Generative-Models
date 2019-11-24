@@ -1,5 +1,7 @@
 
-#!/bin/python
+# coding=utf-8
+#!/home/lois/python37/bin/python
+
 
 import argparse
 import os
@@ -17,15 +19,17 @@ from torch.utils.data import ConcatDataset, DataLoader
 
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDataset, AudioDataset
 from files import MAESTROFiles, SimpleFiles
-from network import Net
-from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step,
-                   make_train_step)
+from network import Generator, Discriminator
+from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step, make_test_step_gan,
+                   make_train_step, make_train_step_gan)
 import numpy as np
 
 ROOT = "/mnt/Data/maestro-v2.0.0/"
 #ROOT = "/mnt/Data/Beethoven/"
 ROOT = "/data/lois-data/Beethoven/"
 ROOT = "/data/lois-data/models/maestro/"
+
+GAN = False
 
 torch.set_default_tensor_type('torch.FloatTensor')
 if torch.cuda.is_available(): torch.set_default_tensor_type('torch.cuda.FloatTensor')  
@@ -86,6 +90,8 @@ def init():
     dataset = variables['dataset']
     dataset_args = variables['dataset_args']
     global ROOT
+    global GAN
+    GAN = False
     ROOT = variables['data_root']
     rate = variables['rate']
     preprocessing = variables['preprocessing']
@@ -113,14 +119,16 @@ def init():
 
 def init_net(depth, dropout):
     
-    net = Net(depth, dropout, verbose = 0)
+    gen = Generator(depth, dropout, verbose = 0)
+    discr = Discriminator(depth, dropout, verbose = 0)
 
     if torch.cuda.is_available():
-        net.cuda()
+        gen.cuda()
+        discr.cuda()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using : " + str(device))
     print("Network initialized")
-    return net, device
+    return gen, discr, device
 
 
 
@@ -178,11 +186,13 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
     return train_loader, test_loader, val_loader
 
    
-def train(model, loader, val, epochs, count, name, loss, optim, device):
+def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, device):
+
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
-    train_step = make_train_step(model, loss, optim)
-    test_step = make_test_step(model, loss)
+    
+    train_step = make_train_step_gan(gen, discr, loss, 0.4, optim_g, optim_d, GAN)
+    test_step = make_test_step_gan(gen, loss, GAN)
 
     cuda = torch.cuda.is_available()
     losses = []
@@ -192,8 +202,8 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
 
     for epoch in range(1, epochs+1):
 
+        loss_buffer = []
 
-        epoch_loss = []
         # correct the count variable if needed
         total = len(loader)
         if (total < count or count < 0): 
@@ -201,66 +211,77 @@ def train(model, loader, val, epochs, count, name, loss, optim, device):
         
         bar = progressbar.ProgressBar(max_value=count)
         curr_count = 0
+
         for x_batch, y_batch in loader:
             bar.update(curr_count)
-            if cuda: model.cuda()
+            if cuda: 
+                gen.cuda()
+                discr.cuda()
+
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             
-            # Train using the current bathc
+            # Train using the current batch
             loss = train_step(x_batch, y_batch)
-            epoch_loss.append(loss)
+            loss_buffer.append(loss)
             # Stop if count reached
             curr_count += 1
             if (curr_count >= count): break
-            
-            
 
-        losses.append(sum(epoch_loss)/len(epoch_loss))
-        
-        for x_val, y_val in val:
-            if cuda: model.cuda()
-            x_val = x_val.to(device)
-            y_val = y_val.to(device)
+            # If 100 batches done
+            if (curr_count % 100 == 0):
+                # Get average train loss
+                losses.append(sum(loss_buffer)/len(loss_buffer))
 
-            loss, _ = test_step(x_val, y_val)
-            val_losses.append(loss)
+                # Compute average test loss
+                val_loss_buffer = []
+                for x_val, y_val in val:
+                    if cuda: 
+                        gen.cuda()
+                        discr.cuda()
+                    x_val = x_val.to(device)
+                    y_val = y_val.to(device)
 
-        
+                    loss, _ = test_step(x_val, y_val)
+                    val_loss_buffer.append(loss)
+                val_losses.append(sum(val_loss_buffer)/len(val_loss_buffer))
+            # Every 500, plot
+            if (curr_count & 500 == 0):
+                plt.plot(losses, label='Train loss')
+                plt.plot(val_losses, label='Test loss')
+                plt.yscale('log')
+                plt.xlabel('epoch')
+                plt.ylabel('loss')
+                plt.legend()
+
+                plt.savefig('out/'+name+'/loss.png', bbox_inches='tight')
+                plt.clf()
+
+                plt.plot(losses, label='Train loss')
+                plt.yscale('log')
+                plt.xlabel('epoch')
+                plt.ylabel('loss')
+                plt.legend()
+
+                plt.savefig('out/'+name+'/loss_train.png', bbox_inches='tight')
+                plt.clf()
+
+                plt.plot(val_losses, label='Test loss')
+                plt.yscale('log')
+                plt.xlabel('epoch')
+                plt.ylabel('loss')
+                plt.legend()
+
+                plt.savefig('out/'+name+'/loss_test.png', bbox_inches='tight')
+                plt.clf()
 
         # Save the model for the epoch
-        if (epoch % 10 == 0):
-            torch.save(model, "out/" + name + "/models/model_" + str(epoch) + ".pt")
-            np.save('out/' + name + '/loss_train.npy', np.array(losses))
-            np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
+        torch.save(gen, "out/" + name + "/models/model_gen_" + str(epoch) + ".pt")
+        torch.save(discr, "out/" + name + "/models/model_discr_" + str(epoch) + ".pt")
+        np.save('out/' + name + '/loss_train.npy', np.array(losses))
+        np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
 
-        plt.plot(losses, label='Train loss')
-        plt.plot(val_losses, label='Test loss')
-        plt.yscale('log')
-        plt.xlabel('epoch')
-        plt.ylabel('loss')
-        plt.legend()
-
-        plt.savefig('out/'+name+'/loss.png', bbox_inches='tight')
-        plt.clf()
-
-        plt.plot(losses, label='Train loss')
-        plt.yscale('log')
-        plt.xlabel('epoch')
-        plt.ylabel('loss')
-        plt.legend()
-
-        plt.savefig('out/'+name+'/loss_train.png', bbox_inches='tight')
-        plt.clf()
-
-        plt.plot(val_losses, label='Test loss')
-        plt.yscale('log')
-        plt.xlabel('epoch')
-        plt.ylabel('loss')
-        plt.legend()
-
-        plt.savefig('out/'+name+'/loss_test.png', bbox_inches='tight')
-        plt.clf()
+       
 
         
 
@@ -306,20 +327,23 @@ def create_output_audio(outputs, rate, name, window, stride, batch):
 
 def pipeline(count, out, epochs, batch, window, stride, depth, dropout, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing):
     # Init net and cuda
-    net, device = init_net(depth, dropout)
+    gen, discr, device = init_net(depth, dropout)
     # Open data, split train and val set
     train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, dataset_args=dataset_args, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
 
-    adam = optim.Adam(net.parameters(), lr=0.0001)
+    adam_gen = optim.Adam(gen.parameters(), lr=0.0001)
+    adam_disrc = optim.Adam(discr.parameters(), lr=0.0001)
     loss = nn.MSELoss()
 
     if load: 
-        net = torch.load("out/" + name + "models/model.pt")
-        net.eval()
+        gen = torch.load("out/" + name + "models/model_gen.pt")
+        gen.eval()
+        discr = torch.load("out/" + name + "models/model_discr.pt")
+        discr.eval()
 
-    else: train(model=net, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim=adam, device=device)
+    else: train(gen=gen, discr=discr, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, device=device)
 
-    outputs = test(model=net, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
+    outputs = test(model=gen, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 
@@ -357,7 +381,7 @@ def overfit_sr():
 if __name__ == "__main__":
     init()
 # Essayer d'overfit avec un petit bout de musique
-# Ca devrait donner un bon résultat
+# Ca devrait donner un bon resultat
 # Essayer de faire l'identité sans les skip connections
 # ssh nice = 19 pour pas prendre trop de cpu sur le server
 # pytorch seulement choisir 1 seul gpu

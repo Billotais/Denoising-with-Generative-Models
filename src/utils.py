@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd.variable import Variable
 
 
 def pixel_shuffle_1d(x, upscale_factor):
@@ -51,10 +52,11 @@ def sliding_window(x, window_size, step_size=1):
     return x.unfold(0,window_size,step_size)
 
 
-def make_train_step(model, loss_fn, optimizer):
+""" def make_train_step(model, loss_fn, optimizer):
 
     # Builds function that performs a step in the train loop
     def train_step(x, y):
+        print(x.size())
         # Sets model to TRAIN mode
         model.train()
         # Makes predictions
@@ -70,28 +72,61 @@ def make_train_step(model, loss_fn, optimizer):
         return loss.item()
     
     # Returns the function that will be called inside the train loop
-    return train_step
+    return train_step """
 
-def make_train_step_gan(generator, discriminator, loss_g, logg_d, optimizer_g, operation_d):
+def make_train_step_gan(generator, discriminator, loss, lambda_d, optimizer_g, optimizer_d, GAN):
 
     def train_step(x, y):
+        N = y.size(0)
+        loss = nn.BCELoss()
 
+        #################
+        # Train generator
+        #################
         optimizer_g.zero_grad()
-
         generator.train()
-        # Generate output
+
+        # Generate output  distriminator
         yhat = generator(x)
-        # Loss of generator : L_l2 + lambda*(-log(D(G(x)))) = L_l2 + lambda*(-log(D(yhat)))
-        loss_g = loss_g(y, yhat, discriminator(yhat))
+
+
+        # Compute the normal loss
+        loss_g_normal = loss(y, yhat) 
+        # Compute the adversarial loss (want want to generate realistic data)
+        loss_g_adv = 0
+        if GAN:
+            prediction = discriminator(yhat)
+            loss_g_adv = loss(prediction, ones_target(N)) 
+        # Compute the global loss
+        loss_g = loss_g_normal + lambda_d*loss_g_adv
+
+        # Propagate
         loss_g.backward()
         optimizer_g.step()
 
+        #####################
+        # Train discriminator
+        #####################
+        if GAN:
+            optimizer_d.zero_grad()
+            discriminator.train()
+            
+            # Train with real data
+            prediction_real = discriminator(y)
+            loss_d_real = loss(prediction_real, ones_target(N))
+            loss_d_real.backward()
+
+            # Train with fake data
+            prediction_fake = discriminator(yhat)
+            loss_d_fake = loss(prediction_fake, zeros_target(N))
+            loss_d_fake.backward()
+
+            # Propagate
+            optimizer_d.step()
 
 
-        operation_d.zero_grad()
 
-
-def make_test_step(model, loss_fn):
+""" def make_test_step(model, loss_fn):
 
     def test_step(x, y):
         
@@ -102,7 +137,42 @@ def make_test_step(model, loss_fn):
 
         return loss.item(), yhat
 
+    return test_step """
+
+def make_test_step_gan(generator, discriminator, loss_fn, GAN):
+
+    def test_step(x, y):
+        N = y.size(0)
+        loss = nn.BCELoss()
+
+        # Loss of G
+        generator.eval()
+        yhat = generator(x)
+        loss_g = loss_fn(y, yhat).item()
+
+        # Loss of D
+        loss_d = 0
+        if GAN:
+            pred = discriminator(yhat)
+            loss_d = loss(pred, zeros_target(N)).item()
+
+        return loss_g, loss_d, yhat
+
     return test_step
+
+def ones_target(size):
+    '''
+    Tensor containing ones, with shape = size
+    '''
+    data = Variable(torch.ones(size, 1))
+    return data
+
+def zeros_target(size):
+    '''
+    Tensor containing zeros, with shape = size
+    '''
+    data = Variable(torch.zeros(size, 1))
+    return data
 
 def concat_list_tensors(tensor_list):
     out = torch.cat(tuple(tensor_list), 2)
