@@ -20,8 +20,7 @@ from torch.utils.data import ConcatDataset, DataLoader
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDataset, AudioDataset
 from files import MAESTROFiles, SimpleFiles
 from network import Generator, Discriminator
-from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step, make_test_step_gan,
-                   make_train_step, make_train_step_gan)
+from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step_gan, make_train_step_gan, plot)
 import numpy as np
 
 ROOT = "/mnt/Data/maestro-v2.0.0/"
@@ -41,7 +40,7 @@ def init():
     ap = argparse.ArgumentParser()
 
    
-    ap.add_argument("-c", "--count", required=False, help="number of mini-batches used for training", type=int, default=-1)
+    ap.add_argument("-c", "--count", required=False, help="number of mini-batches used for training", type=int, default=50)
     ap.add_argument("-o", "--out", required=False, help="number of samples to output", type=int, default=500)
     ap.add_argument("-e", "--epochs", help="number of epochs, default 1", type=int, default=1)
     ap.add_argument("-b", "--batch", help="size of a training batch, default 32", type=int, default=32)
@@ -117,10 +116,10 @@ def init():
 
 
 
-def init_net(depth, dropout):
+def init_net(depth, dropout, input_shape):
     
     gen = Generator(depth, dropout, verbose = 0)
-    discr = Discriminator(depth, dropout, verbose = 0)
+    discr = Discriminator(depth, dropout, input_shape, verbose = 0)
 
     if torch.cuda.is_available():
         gen.cuda()
@@ -128,6 +127,8 @@ def init_net(depth, dropout):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using : " + str(device))
     print("Network initialized")
+    print(gen)
+    print(discr)
     return gen, discr, device
 
 
@@ -164,8 +165,10 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
  
     names_train = f.get_train(train_n)
     print("Train files : " + str(names_train))
-    names_test = f.get_test(test_n)
-    print("Test files : " + str(names_test))
+    names_val = f.get_val()
+    print("\nVal files : " + str(names_val))
+    names_test = f.get_test()
+    print("\nTest files : " + str(names_test) + "\n")
 
 
     #names_val = f.get_validation(val_n)
@@ -174,10 +177,12 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
 
     datasets_train = [AudioDataset(run_name, n, window, stride, preprocess) for n in names_train]
     datasets_test =  [AudioDataset(run_name, n, window, stride, preprocess) for n in names_test]
-    #datasets_val = [get_dataset_fn(dataset)(n, *args) for n in names_val]
+    datasets_val =   [AudioDataset(run_name, n, window, stride, preprocess, 128, 32) for n in names_val]
+
     data_train = ConcatDataset(datasets_train)
     data_test = ConcatDataset(datasets_test)
-    data_train, data_val = torch.utils.data.random_split(data_train, [len(data_train)-10, 10])
+    data_val = ConcatDataset(datasets_val)
+    
     train_loader = DataLoader(dataset=data_train, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(dataset=data_test, batch_size=batch_size, shuffle=False)
     val_loader = DataLoader(dataset=data_val, batch_size=batch_size, shuffle=True)
@@ -192,17 +197,21 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
     train_step = make_train_step_gan(gen, discr, loss, 0.4, optim_g, optim_d, GAN)
-    test_step = make_test_step_gan(gen, loss, GAN)
+    test_step = make_test_step_gan(gen, discr, loss, GAN)
 
     cuda = torch.cuda.is_available()
     losses = []
     val_losses = []
+    losses_gan = []
+    val_losses_gan = []
+    loss_buffer = []
+    loss_buffer_gan = []
 
    
 
     for epoch in range(1, epochs+1):
 
-        loss_buffer = []
+        
 
         # correct the count variable if needed
         total = len(loader)
@@ -222,19 +231,25 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
             y_batch = y_batch.to(device)
             
             # Train using the current batch
-            loss = train_step(x_batch, y_batch)
+            loss, loss_gan = train_step(x_batch, y_batch)
             loss_buffer.append(loss)
+            loss_buffer_gan.append(loss_gan)
             # Stop if count reached
             curr_count += 1
             if (curr_count >= count): break
 
             # If 100 batches done
-            if (curr_count % 100 == 0):
+            if (len(loss_buffer) % 100 == 0):
+                #print("c100 bactches")
                 # Get average train loss
                 losses.append(sum(loss_buffer)/len(loss_buffer))
+                losses_gan.append(sum(loss_buffer_gan)/len(loss_buffer_gan))
+                loss_buffer = []
+                loss_buffer_gan = []
 
                 # Compute average test loss
                 val_loss_buffer = []
+                val_loss_buffer_gan = []
                 for x_val, y_val in val:
                     if cuda: 
                         gen.cuda()
@@ -242,38 +257,15 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
                     x_val = x_val.to(device)
                     y_val = y_val.to(device)
 
-                    loss, _ = test_step(x_val, y_val)
+                    loss, loss_gan, _ = test_step(x_val, y_val)
                     val_loss_buffer.append(loss)
+                    val_loss_buffer_gan.append(loss_gan)
                 val_losses.append(sum(val_loss_buffer)/len(val_loss_buffer))
-            # Every 500, plot
-            if (curr_count & 500 == 0):
-                plt.plot(losses, label='Train loss')
-                plt.plot(val_losses, label='Test loss')
-                plt.yscale('log')
-                plt.xlabel('epoch')
-                plt.ylabel('loss')
-                plt.legend()
-
-                plt.savefig('out/'+name+'/loss.png', bbox_inches='tight')
-                plt.clf()
-
-                plt.plot(losses, label='Train loss')
-                plt.yscale('log')
-                plt.xlabel('epoch')
-                plt.ylabel('loss')
-                plt.legend()
-
-                plt.savefig('out/'+name+'/loss_train.png', bbox_inches='tight')
-                plt.clf()
-
-                plt.plot(val_losses, label='Test loss')
-                plt.yscale('log')
-                plt.xlabel('epoch')
-                plt.ylabel('loss')
-                plt.legend()
-
-                plt.savefig('out/'+name+'/loss_test.png', bbox_inches='tight')
-                plt.clf()
+                val_losses_gan.append(sum(val_loss_buffer_gan)/len(val_loss_buffer_gan))
+                # Every 500, plot
+                if (len(losses) % 5 == 0):
+                    plot(losses, val_losses, losses_gan, val_losses_gan, name, GAN)
+                    
 
         # Save the model for the epoch
         torch.save(gen, "out/" + name + "/models/model_gen_" + str(epoch) + ".pt")
@@ -289,8 +281,8 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
     print("Model trained")
     plt.clf()
 
-def test(model, loader, count, name, loss,  device):
-    test_step = make_test_step(model, loss)
+def test(gen, discr, loader, count, name, loss,  device):
+    test_step = make_test_step_gan(gen, discr, loss, GAN)
 
     # Test model
 
@@ -300,11 +292,13 @@ def test(model, loader, count, name, loss,  device):
     bar = Bar('Testing', max=count)
     with torch.no_grad():
         for x_test, y_test in loader:
-            if cuda: model.cuda()
+            if cuda: 
+                gen.cuda()
+                discr.cuda()
             x_test = x_test.to(device)
             y_test = y_test.to(device)
 
-            loss, y_test_hat = test_step(x_test, y_test)
+            loss, _, y_test_hat = test_step(x_test, y_test)
             losses.append(loss)
     
             outputs.append(y_test_hat.to('cpu'))
@@ -327,7 +321,7 @@ def create_output_audio(outputs, rate, name, window, stride, batch):
 
 def pipeline(count, out, epochs, batch, window, stride, depth, dropout, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing):
     # Init net and cuda
-    gen, discr, device = init_net(depth, dropout)
+    gen, discr, device = init_net(depth, dropout, (1, window))
     # Open data, split train and val set
     train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, dataset_args=dataset_args, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
 
@@ -343,7 +337,7 @@ def pipeline(count, out, epochs, batch, window, stride, depth, dropout, out_rate
 
     else: train(gen=gen, discr=discr, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, device=device)
 
-    outputs = test(model=gen, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
+    outputs = test(gen=gen, discr=discr, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 

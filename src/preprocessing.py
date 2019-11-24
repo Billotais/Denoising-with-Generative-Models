@@ -17,6 +17,10 @@ from random import gauss, seed
 seed(111)
 
 def sample(filename_x, filename_y, audio_rate, file_rate):
+
+    # print(filename_x)
+    # print(filename_y)
+
     name_x = ".".join(filename_x.split('.')[:-1]) + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[-1]
     # Get the compressed data = input
     # Compress it and then upsample at the same rate as the target so the network works
@@ -68,12 +72,15 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
 
 
 def preprocess(run_name, filename, arguments):
+    #print(filename)
     # now = datetime.now()
     # date_time = now.strftime("%m_%d_%Y-%H:%M:%S")
 
     folder = "out/" + run_name + "/tmp"
-    
+    # print(filename)
+    # print("before")
     os.system('cp '+ filename + ' ' + folder + '/' + filename.split('/')[-1])
+    # print("after")
 
     file_x = folder + "/" + filename.split('/')[-1]
     file_y = folder + "/" + filename.split('/')[-1]
@@ -96,6 +103,7 @@ def preprocess(run_name, filename, arguments):
     # os.system("sox " + file_y + " " + file_y_wav)
 
     # return file_x_wav, file_y_wav
+    
     return file_x, file_y
 
 
@@ -107,6 +115,5 @@ def preprocess(run_name, filename, arguments):
 
 # print(preprocess("in.wav", ["sample 5000 10000", "whitenoise 0.005"]))
 #print(preprocess("in.wav", ["reverb"]))
-
 
 

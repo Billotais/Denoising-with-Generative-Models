@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd.variable import Variable
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 
 def pixel_shuffle_1d(x, upscale_factor):
@@ -78,7 +80,7 @@ def make_train_step_gan(generator, discriminator, loss, lambda_d, optimizer_g, o
 
     def train_step(x, y):
         N = y.size(0)
-        loss = nn.BCELoss()
+        loss_gan = nn.BCELoss()
 
         #################
         # Train generator
@@ -96,33 +98,41 @@ def make_train_step_gan(generator, discriminator, loss, lambda_d, optimizer_g, o
         loss_g_adv = 0
         if GAN:
             prediction = discriminator(yhat)
-            loss_g_adv = loss(prediction, ones_target(N)) 
+            loss_g_adv = loss_gan(prediction, ones_target(N)) 
         # Compute the global loss
-        loss_g = loss_g_normal + lambda_d*loss_g_adv
+        loss_g = (loss_g_normal + lambda_d*loss_g_adv)
 
         # Propagate
         loss_g.backward()
         optimizer_g.step()
 
+        loss_g = loss_g.item()
+
         #####################
         # Train discriminator
         #####################
+        loss_d = 0
         if GAN:
             optimizer_d.zero_grad()
             discriminator.train()
             
             # Train with real data
             prediction_real = discriminator(y)
-            loss_d_real = loss(prediction_real, ones_target(N))
+            loss_d_real = loss_gan(prediction_real, ones_target(N))
             loss_d_real.backward()
 
             # Train with fake data
             prediction_fake = discriminator(yhat)
-            loss_d_fake = loss(prediction_fake, zeros_target(N))
+            loss_d_fake = loss_gan(prediction_fake, zeros_target(N))
             loss_d_fake.backward()
+
+            loss_d = ((loss_d_real + loss_d_fake) / 2).item()
 
             # Propagate
             optimizer_d.step()
+
+        return loss_g, loss_d
+    return train_step
 
 
 
@@ -192,3 +202,64 @@ def cut_and_concat_tensors(tensor_list, window, stride):
     concat = torch.cat((tensor_list[0][:,:,:-limit], concat), 2)
     concat = torch.cat((concat, tensor_list[-1][:,:,limit:]), 2)
     return concat
+
+
+def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, name, GAN):
+
+
+    mpl.style.use('seaborn')
+    print("plotting")
+    # Plot generator loss
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,10))
+    fig.suptitle('Loss Generator')
+   
+    ax1.plot(loss_train, label='Train loss', color='b')
+    ax1.plot(loss_test, label='Test loss', color='r')
+    ax1.set_yscale('log')
+    ax1.set_xlabel('100*batch')
+    ax1.set_ylabel('loss')
+    ax1.legend()
+
+    ax2.plot(loss_train, label='Train loss', color='b')
+    ax2.set_yscale('log')
+    ax2.set_xlabel('100*batch')
+    ax2.set_ylabel('loss')
+    ax2.legend()
+
+    ax3.plot(loss_test, label='Test loss', color='r')
+    ax3.set_yscale('log')
+    ax3.set_xlabel('100*batch')
+    ax3.set_ylabel('loss')
+    ax3.legend()
+
+    fig.savefig('out/'+name+'/loss.png', bbox_inches='tight')
+    fig.clf()
+    plt.close()
+
+    if (GAN):
+        # Plot discriminator loss
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        fig.suptitle('Loss Discriminator')
+    
+        ax1.plot(loss_train_gan, label='Train loss')
+        ax1.plot(loss_test_gan, label='Test loss')
+        ax1.set_yscale('log')
+        ax1.set_xlabel('100*batch')
+        ax1.set_ylabel('loss')
+        ax1.legend()
+
+        ax2.plot(loss_train_gan, label='Train loss')
+        ax2.set_yscale('log')
+        ax2.set_xlabel('100*batch')
+        ax2.set_ylabel('loss')
+        ax2.legend()
+
+        ax3.plot(loss_test_gan, label='Test loss')
+        ax3.set_yscale('log')
+        ax3.set_xlabel('100*batch')
+        ax3.set_ylabel('loss')
+        ax3.legend()
+
+        fig.savefig('out/'+name+'/loss_gan.png', bbox_inches='tight')
+        fig.clf()
+        plt.close()

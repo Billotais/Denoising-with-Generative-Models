@@ -42,16 +42,19 @@ class SimpleFiles():
         self.files = list(map(lambda x: root+"/"+x, os.listdir(self.root)))
         
         #print(self.files)
-        self.split = int(split*len(self.files))
+       
     def get(self, count=-1):
-        
         return self.files[:count]
     def get_train(self, count=-1):
-        return self.files[:min(count, self.split)]
- #   def get_validation(self, count=-1):
-  #      return self.files[:min(count+1, self.split)][-1]
-    def get_test(self, count=-1):
-        return self.files[self.split:self.split+count]
+        if count == -1:
+
+            return self.files[:-2]
+        else:
+            return self.files[:min(len(self.files)-2, count)]
+    def get_val(self):
+        return [self.files[-2]]
+    def get_test(self):
+        return [self.files[-1]]
 
 
     
