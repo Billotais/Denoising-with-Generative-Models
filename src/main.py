@@ -20,13 +20,15 @@ from torch.utils.data import ConcatDataset, DataLoader
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDataset, AudioDataset
 from files import MAESTROFiles, SimpleFiles
 from network import Generator, Discriminator
-from utils import (concat_list_tensors, cut_and_concat_tensors, make_test_step_gan, make_train_step_gan, plot)
+from utils import (concat_list_tensors, cut_and_concat_tensors, plot, create_output_audio)
+from train import make_train_step_gan
+from test import  make_test_step_gan
 import numpy as np
 
-ROOT = "/mnt/Data/maestro-v2.0.0/"
-#ROOT = "/mnt/Data/Beethoven/"
-ROOT = "/data/lois-data/Beethoven/"
-ROOT = "/data/lois-data/models/maestro/"
+import torch.optim
+
+
+
 
 GAN = False
 
@@ -35,10 +37,7 @@ if torch.cuda.is_available(): torch.set_default_tensor_type('torch.cuda.FloatTen
 
 def init():
 
-    #os.system('mkdir /tmp/vita')
-
     ap = argparse.ArgumentParser()
-
    
     ap.add_argument("-c", "--count", required=False, help="number of mini-batches used for training", type=int, default=50)
     ap.add_argument("-o", "--out", required=False, help="number of samples to output", type=int, default=500)
@@ -59,22 +58,19 @@ def init():
     ap.add_argument("--rate", required=True, help="Sample rate of the output file", type=int)
     ap.add_argument("--preprocessing", required=True, help="Preprocessing pipeline, a string with each step of the pipeline separated by a comma", type=str)
     ap.add_argument("--special", required=False, help="Use a special pipeline in the code", type=str, default="normal")
-   
+    ap.add_argument("--gan", required=False, help="lambda for the gan", type=float, default=0)
+    ap.add_argument("--lr_g", required=False, help="learning rate for the generator", type=float, default=0.0001)
+    ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator", type=float, default=0.0001)
 
-
-
-    
     args = ap.parse_args()
-    
     variables = vars(args)
-
-    print(variables)
     if (variables['special'] == 'overfit-sr'):
         return overfit_sr()
-    
-
-
-    
+  
+    global ROOT
+    global GAN
+    GAN = variables['gan']
+    ROOT = variables['data_root']
     count = variables['count']
     out = variables['out']
     epochs = variables['epochs']
@@ -88,14 +84,13 @@ def init():
     continue_train = True if variables['continue'] == 1 else 0
     dataset = variables['dataset']
     dataset_args = variables['dataset_args']
-    global ROOT
-    global GAN
-    GAN = False
-    ROOT = variables['data_root']
+    
     rate = variables['rate']
     preprocessing = variables['preprocessing']
     name = variables['name']
     dropout = variables['dropout']
+    lr_g = variables['lr_g']
+    lr_d = variables['lr_d']
     
 
     os.system("rm -rf out/" + name)
@@ -108,7 +103,7 @@ def init():
     with open("out/" + name + "/command", "w") as text_file:
         text_file.write(" ".join(sys.argv))
     #print("".join(sys.argv))
-    pipeline(count, out, epochs, batch, window, stride, depth, dropout, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing)
+    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing)
     
 
 
@@ -130,22 +125,6 @@ def init_net(depth, dropout, input_shape):
     print(gen)
     print(discr)
     return gen, discr, device
-
-
-
-def upscaling_dataset(filename, window, stride, in_rate, out_rate):
-    return  AudioUpScalingDataset(ROOT + filename, window=window, stride=stride, compressed_rate=in_rate, target_rate=out_rate)
-def denoising_dataset(filename, window, stride, rate):
-    return AudioWhiteNoiseDataset(ROOT + filename, window=window, stride=stride, rate=rate)
-def identity_dataset(filename, window, stride, rate):
-    return AudioIDDataset(ROOT + filename, window,stride,-1)
-
-    
-def get_dataset_fn(name):
-   
-    if name == 'upscaling': return upscaling_dataset
-    if name == 'denoising': return denoising_dataset
-    if name == 'identity': return identity_dataset
 
 def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, stride, dataset_args, run_name):
     
@@ -196,7 +175,7 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
-    train_step = make_train_step_gan(gen, discr, loss, 0.4, optim_g, optim_d, GAN)
+    train_step = make_train_step_gan(gen, discr, loss, 0.2, optim_g, optim_d, GAN)
     test_step = make_test_step_gan(gen, discr, loss, GAN)
 
     cuda = torch.cuda.is_available()
@@ -207,6 +186,8 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
     loss_buffer = []
     loss_buffer_gan = []
 
+    scheduler_g = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_g, verbose=True)
+    scheduler_d = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_d, verbose=True)
    
 
     for epoch in range(1, epochs+1):
@@ -262,9 +243,13 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
                     val_loss_buffer_gan.append(loss_gan)
                 val_losses.append(sum(val_loss_buffer)/len(val_loss_buffer))
                 val_losses_gan.append(sum(val_loss_buffer_gan)/len(val_loss_buffer_gan))
-                # Every 500, plot
+                # Every 500, plot and decrease lr in needed
                 if (len(losses) % 5 == 0):
                     plot(losses, val_losses, losses_gan, val_losses_gan, name, GAN)
+                    scheduler_g.step(val_losses[-1])
+                    scheduler_d.step(val_losses_gan[-1])
+
+        
                     
 
         # Save the model for the epoch
@@ -272,6 +257,8 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
         torch.save(discr, "out/" + name + "/models/model_discr_" + str(epoch) + ".pt")
         np.save('out/' + name + '/loss_train.npy', np.array(losses))
         np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
+        np.save('out/' + name + '/loss_train_gan.npy', np.array(losses_gan))
+        np.save('out/' + name + '/loss_test_gan.npy', np.array(val_losses_gan))
 
        
 
@@ -279,7 +266,7 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
 
         
     print("Model trained")
-    plt.clf()
+    plot(losses, val_losses, losses_gan, val_losses_gan, name, GAN)
 
 def test(gen, discr, loader, count, name, loss,  device):
     test_step = make_test_step_gan(gen, discr, loss, GAN)
@@ -311,22 +298,16 @@ def test(gen, discr, loader, count, name, loss,  device):
     plt.clf()
     return outputs
 
-def create_output_audio(outputs, rate, name, window, stride, batch):
-    #outputs = [torch.flatten(x, 0)[None, None, :] for x in outputs]# addedd to hansdle batches in output 
-    outputs = [torch.chunk(x, batch, dim=0) for x in outputs]
-    outputs = [val for sublist in outputs for val in sublist]
-    out = cut_and_concat_tensors(outputs, window, stride)
-    out_formated = out.reshape((1, out.size()[2]))
-    torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=16, channels_first=True)
 
-def pipeline(count, out, epochs, batch, window, stride, depth, dropout, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing):
+
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing):
     # Init net and cuda
     gen, discr, device = init_net(depth, dropout, (1, window))
     # Open data, split train and val set
     train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, dataset_args=dataset_args, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
 
-    adam_gen = optim.Adam(gen.parameters(), lr=0.0001)
-    adam_disrc = optim.Adam(discr.parameters(), lr=0.0001)
+    adam_gen = optim.Adam(gen.parameters(), lr=lr_g)
+    adam_disrc = optim.Adam(discr.parameters(), lr=lr_d)
     loss = nn.MSELoss()
 
     if load: 

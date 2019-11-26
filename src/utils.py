@@ -4,7 +4,8 @@ import torch.nn.functional as F
 from torch.autograd.variable import Variable
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
+import torch.optim
+import torchaudio
 
 def pixel_shuffle_1d(x, upscale_factor):
     """Does the subpixel operation"""
@@ -54,121 +55,6 @@ def sliding_window(x, window_size, step_size=1):
     return x.unfold(0,window_size,step_size)
 
 
-""" def make_train_step(model, loss_fn, optimizer):
-
-    # Builds function that performs a step in the train loop
-    def train_step(x, y):
-        print(x.size())
-        # Sets model to TRAIN mode
-        model.train()
-        # Makes predictions
-        yhat = model(x)
-        # Computes loss
-        loss = loss_fn(y, yhat)
-        # Computes gradients
-        loss.backward()
-        # Updates parameters and zeroes gradients
-        optimizer.step()
-        optimizer.zero_grad()
-        # Returns the loss
-        return loss.item()
-    
-    # Returns the function that will be called inside the train loop
-    return train_step """
-
-def make_train_step_gan(generator, discriminator, loss, lambda_d, optimizer_g, optimizer_d, GAN):
-
-    def train_step(x, y):
-        N = y.size(0)
-        loss_gan = nn.BCELoss()
-
-        #################
-        # Train generator
-        #################
-        optimizer_g.zero_grad()
-        generator.train()
-
-        # Generate output  distriminator
-        yhat = generator(x)
-
-
-        # Compute the normal loss
-        loss_g_normal = loss(y, yhat) 
-        # Compute the adversarial loss (want want to generate realistic data)
-        loss_g_adv = 0
-        if GAN:
-            prediction = discriminator(yhat)
-            loss_g_adv = loss_gan(prediction, ones_target(N)) 
-        # Compute the global loss
-        loss_g = (loss_g_normal + lambda_d*loss_g_adv)
-
-        # Propagate
-        loss_g.backward()
-        optimizer_g.step()
-
-        loss_g = loss_g.item()
-
-        #####################
-        # Train discriminator
-        #####################
-        loss_d = 0
-        if GAN:
-            optimizer_d.zero_grad()
-            discriminator.train()
-            
-            # Train with real data
-            prediction_real = discriminator(y)
-            loss_d_real = loss_gan(prediction_real, ones_target(N))
-            loss_d_real.backward()
-
-            # Train with fake data
-            prediction_fake = discriminator(yhat)
-            loss_d_fake = loss_gan(prediction_fake, zeros_target(N))
-            loss_d_fake.backward()
-
-            loss_d = ((loss_d_real + loss_d_fake) / 2).item()
-
-            # Propagate
-            optimizer_d.step()
-
-        return loss_g, loss_d
-    return train_step
-
-
-
-""" def make_test_step(model, loss_fn):
-
-    def test_step(x, y):
-        
-        model.eval()
-        yhat = model(x)
-
-        loss = loss_fn(y, yhat)
-
-        return loss.item(), yhat
-
-    return test_step """
-
-def make_test_step_gan(generator, discriminator, loss_fn, GAN):
-
-    def test_step(x, y):
-        N = y.size(0)
-        loss = nn.BCELoss()
-
-        # Loss of G
-        generator.eval()
-        yhat = generator(x)
-        loss_g = loss_fn(y, yhat).item()
-
-        # Loss of D
-        loss_d = 0
-        if GAN:
-            pred = discriminator(yhat)
-            loss_d = loss(pred, zeros_target(N)).item()
-
-        return loss_g, loss_d, yhat
-
-    return test_step
 
 def ones_target(size):
     '''
@@ -203,12 +89,19 @@ def cut_and_concat_tensors(tensor_list, window, stride):
     concat = torch.cat((concat, tensor_list[-1][:,:,limit:]), 2)
     return concat
 
+def create_output_audio(outputs, rate, name, window, stride, batch):
+    #outputs = [torch.flatten(x, 0)[None, None, :] for x in outputs]# addedd to hansdle batches in output 
+    outputs = [torch.chunk(x, batch, dim=0) for x in outputs]
+    outputs = [val for sublist in outputs for val in sublist]
+    out = cut_and_concat_tensors(outputs, window, stride)
+    out_formated = out.reshape((1, out.size()[2]))
+    torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=16, channels_first=True)
 
 def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, name, GAN):
 
 
     mpl.style.use('seaborn')
-    print("plotting")
+    
     # Plot generator loss
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,10))
     fig.suptitle('Loss Generator')
@@ -238,23 +131,23 @@ def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, name, GAN):
 
     if (GAN):
         # Plot discriminator loss
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,10))
         fig.suptitle('Loss Discriminator')
     
-        ax1.plot(loss_train_gan, label='Train loss')
-        ax1.plot(loss_test_gan, label='Test loss')
+        ax1.plot(loss_train_gan, label='Train loss', color='b')
+        ax1.plot(loss_test_gan, label='Test loss', color='r')
         ax1.set_yscale('log')
         ax1.set_xlabel('100*batch')
         ax1.set_ylabel('loss')
         ax1.legend()
 
-        ax2.plot(loss_train_gan, label='Train loss')
+        ax2.plot(loss_train_gan, label='Train loss', color='b')
         ax2.set_yscale('log')
         ax2.set_xlabel('100*batch')
         ax2.set_ylabel('loss')
         ax2.legend()
 
-        ax3.plot(loss_test_gan, label='Test loss')
+        ax3.plot(loss_test_gan, label='Test loss', color='r')
         ax3.set_yscale('log')
         ax3.set_xlabel('100*batch')
         ax3.set_ylabel('loss')
