@@ -97,7 +97,7 @@ def create_output_audio(outputs, rate, name, window, stride, batch):
     out_formated = out.reshape((1, out.size()[2]))
     torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=16, channels_first=True)
 
-def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, name, GAN):
+def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, name, GAN):
 
 
     mpl.style.use('seaborn')
@@ -114,6 +114,7 @@ def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, name, GAN):
     ax1.legend()
 
     ax2.plot(loss_train, label='Train loss', color='b')
+    ax2.plot(loss_normal, label='Train loss normal', color='g')
     ax2.set_yscale('log')
     ax2.set_xlabel('100*batch')
     ax2.set_ylabel('loss')

@@ -21,8 +21,8 @@ from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDatas
 from files import MAESTROFiles, SimpleFiles
 from network import Generator, Discriminator
 from utils import (concat_list_tensors, cut_and_concat_tensors, plot, create_output_audio)
-from train import make_train_step_gan
-from test import  make_test_step_gan
+from train import make_train_step_gan, train
+from test import  make_test_step_gan, test
 import numpy as np
 
 import torch.optim
@@ -61,6 +61,7 @@ def init():
     ap.add_argument("--gan", required=False, help="lambda for the gan", type=float, default=0)
     ap.add_argument("--lr_g", required=False, help="learning rate for the generator", type=float, default=0.0001)
     ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator", type=float, default=0.0001)
+    ap.add_argument("--scheduler", required=False, help="choose to enable the scheduler", type=bool, default=False)
 
     args = ap.parse_args()
     variables = vars(args)
@@ -68,8 +69,8 @@ def init():
         return overfit_sr()
   
     global ROOT
-    global GAN
-    GAN = variables['gan']
+    
+    gan = variables['gan']
     ROOT = variables['data_root']
     count = variables['count']
     out = variables['out']
@@ -91,6 +92,8 @@ def init():
     dropout = variables['dropout']
     lr_g = variables['lr_g']
     lr_d = variables['lr_d']
+    scheduler = variables['scheduler']
+    print(scheduler)
     
 
     os.system("rm -rf out/" + name)
@@ -103,7 +106,7 @@ def init():
     with open("out/" + name + "/command", "w") as text_file:
         text_file.write(" ".join(sys.argv))
     #print("".join(sys.argv))
-    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing)
+    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, scheduler)
     
 
 
@@ -170,137 +173,13 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
     return train_loader, test_loader, val_loader
 
    
-def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, device):
-
-
-    print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
-    
-    train_step = make_train_step_gan(gen, discr, loss, 0.2, optim_g, optim_d, GAN)
-    test_step = make_test_step_gan(gen, discr, loss, GAN)
-
-    cuda = torch.cuda.is_available()
-    losses = []
-    val_losses = []
-    losses_gan = []
-    val_losses_gan = []
-    loss_buffer = []
-    loss_buffer_gan = []
-
-    scheduler_g = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_g, verbose=True)
-    scheduler_d = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_d, verbose=True)
-   
-
-    for epoch in range(1, epochs+1):
-
-        
-
-        # correct the count variable if needed
-        total = len(loader)
-        if (total < count or count < 0): 
-            count = total 
-        
-        bar = progressbar.ProgressBar(max_value=count)
-        curr_count = 0
-
-        for x_batch, y_batch in loader:
-            bar.update(curr_count)
-            if cuda: 
-                gen.cuda()
-                discr.cuda()
-
-            x_batch = x_batch.to(device)
-            y_batch = y_batch.to(device)
-            
-            # Train using the current batch
-            loss, loss_gan = train_step(x_batch, y_batch)
-            loss_buffer.append(loss)
-            loss_buffer_gan.append(loss_gan)
-            # Stop if count reached
-            curr_count += 1
-            if (curr_count >= count): break
-
-            # If 100 batches done
-            if (len(loss_buffer) % 100 == 0):
-                #print("c100 bactches")
-                # Get average train loss
-                losses.append(sum(loss_buffer)/len(loss_buffer))
-                losses_gan.append(sum(loss_buffer_gan)/len(loss_buffer_gan))
-                loss_buffer = []
-                loss_buffer_gan = []
-
-                # Compute average test loss
-                val_loss_buffer = []
-                val_loss_buffer_gan = []
-                for x_val, y_val in val:
-                    if cuda: 
-                        gen.cuda()
-                        discr.cuda()
-                    x_val = x_val.to(device)
-                    y_val = y_val.to(device)
-
-                    loss, loss_gan, _ = test_step(x_val, y_val)
-                    val_loss_buffer.append(loss)
-                    val_loss_buffer_gan.append(loss_gan)
-                val_losses.append(sum(val_loss_buffer)/len(val_loss_buffer))
-                val_losses_gan.append(sum(val_loss_buffer_gan)/len(val_loss_buffer_gan))
-                # Every 500, plot and decrease lr in needed
-                if (len(losses) % 5 == 0):
-                    plot(losses, val_losses, losses_gan, val_losses_gan, name, GAN)
-                    scheduler_g.step(val_losses[-1])
-                    scheduler_d.step(val_losses_gan[-1])
-
-        
-                    
-
-        # Save the model for the epoch
-        torch.save(gen, "out/" + name + "/models/model_gen_" + str(epoch) + ".pt")
-        torch.save(discr, "out/" + name + "/models/model_discr_" + str(epoch) + ".pt")
-        np.save('out/' + name + '/loss_train.npy', np.array(losses))
-        np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
-        np.save('out/' + name + '/loss_train_gan.npy', np.array(losses_gan))
-        np.save('out/' + name + '/loss_test_gan.npy', np.array(val_losses_gan))
-
-       
-
-        
-
-        
-    print("Model trained")
-    plot(losses, val_losses, losses_gan, val_losses_gan, name, GAN)
-
-def test(gen, discr, loader, count, name, loss,  device):
-    test_step = make_test_step_gan(gen, discr, loss, GAN)
-
-    # Test model
-
-    cuda = torch.cuda.is_available()
-    losses = []
-    outputs = []
-    bar = Bar('Testing', max=count)
-    with torch.no_grad():
-        for x_test, y_test in loader:
-            if cuda: 
-                gen.cuda()
-                discr.cuda()
-            x_test = x_test.to(device)
-            y_test = y_test.to(device)
-
-            loss, _, y_test_hat = test_step(x_test, y_test)
-            losses.append(loss)
-    
-            outputs.append(y_test_hat.to('cpu'))
-            bar.next()
-            if (count > 0 and len(losses) >= count ): break
-        bar.finish()
-    plt.plot(losses)
-    plt.yscale('log')
-    plt.savefig('out/'+name+'/test.png')
-    plt.clf()
-    return outputs
 
 
 
-def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing):
+
+
+
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, scheduler):
     # Init net and cuda
     gen, discr, device = init_net(depth, dropout, (1, window))
     # Open data, split train and val set
@@ -311,14 +190,21 @@ def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr
     loss = nn.MSELoss()
 
     if load: 
-        gen = torch.load("out/" + name + "models/model_gen.pt")
-        gen.eval()
-        discr = torch.load("out/" + name + "models/model_discr.pt")
-        discr.eval()
 
-    else: train(gen=gen, discr=discr, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, device=device)
+        checkpoint = torch.load("out/" + name + "models/model.tar")
+        gen.load_state_dict(checkpoint['gen_state_dict'])
+        discr.load_state_dict(checkpoint['discr_state_dict'])
+        adam_gen.load_state_dict(checkpoint['optim_g_state_dict'])
+        adam_discr.load_state_dict(checkpoint['optim_d_state_dict'])
+        # gen = torch.load("out/" + name + "models/model_gen.pt")
+        # gen.eval()
+        # discr = torch.load("out/" + name + "models/model_discr.pt")
+        # discr.eval()
 
-    outputs = test(gen=gen, discr=discr, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device)
+    if ((not load) or continue_train): 
+        train(gen=gen, discr=discr, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, device=device, gan=gan, scheduler=scheduler)
+
+    outputs = test(gen=gen, discr=discr, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device, gan=gan)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 

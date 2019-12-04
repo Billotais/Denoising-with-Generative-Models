@@ -34,12 +34,12 @@ def sample(filename_x, filename_y, audio_rate, file_rate):
 
     return name_x, name_y
 
-def noise(filename_x, filename_y, variance, noise_type, intensity):
+def noise(filename_x, filename_y, noise_type, variance, intensity):
     if noise_type not in noises: 
         print(noise_type + " is not a valid noise type !")
         return filename_x, filename_y
 
-    intensity += gauss(0, variance)
+    intensity += gauss(0, float(variance))
     name = ".".join(filename_x.split('.')[:-1]) + "-" + noise_type + "_" + str(intensity) + "." + filename_x.split('.')[-1]
     os.system("sox " + filename_x + " tmp/noise.wav synth " + noise_type + " vol " + str(intensity) + " && sox -m " + filename_x + " tmp/noise.wav " + name + "")
 
@@ -49,12 +49,12 @@ def noise(filename_x, filename_y, variance, noise_type, intensity):
 
 def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, room_scale=100, stereo_depth=100, pre_delay=40, wet_gain=0, wet_only=False):
 
-    reverberance += gauss(0, variance)
-    hf_damping += gauss(0, variance)
-    room_scale += gauss(0, variance)
-    stereo_depth += gauss(0, variance)
-    pre_delay += gauss(0, variance)
-    wet_gain += gauss(0, variance)
+    reverberance += gauss(0, float(variance))
+    hf_damping += gauss(0, float(variance))
+    room_scale += gauss(0, float(variance))
+    stereo_depth += gauss(0, float(variance))
+    pre_delay += gauss(0, float(variance))
+    wet_gain += gauss(0, float(variance))
     
     fx = (
         AudioEffectsChain()
@@ -90,11 +90,11 @@ def preprocess(run_name, filename, arguments):
         args = command.strip().split(' ')
         #print(args)
         if args[0] == "sample":
-            file_x, file_y = sample(file_x, file_y, *args[1:])
+            file_x, file_y = sample(file_x, file_y, *[float(i) for i in args[1:]])
         if args[0] in noises:
-            file_x, file_y = noise(file_x, file_y, *args)
+            file_x, file_y = noise(file_x, file_y, args[0], *[float(i) for i in args[1:]])
         if args[0] == "reverb": # "reverb sample_rate *reverb_args"
-            file_x, file_y = reverb(file_x, file_y, *args[2:])
+            file_x, file_y = reverb(file_x, file_y, *[float(i) for i in args[2:]])
             file_x, file_y = sample(file_x, file_y, args[1], args[1])
     
     # file_x_wav = file_x.split(".")[-2] + ".wav"

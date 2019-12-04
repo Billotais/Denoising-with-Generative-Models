@@ -212,10 +212,14 @@ class Discriminator(nn.Module):
         self.flatten = nn.Flatten()
 
         # Compute input size on the fly
+
+        self.dropout = nn.Dropout(p=DROPOUT)
         self.flattened_input_size = self.get_flatten_features(input_size, self.down, self.flatten)
         self.linear = nn.Linear(self.flattened_input_size, 1)
 
         self.sigmoid = nn.Sigmoid()
+
+
 
 
     # Helper to compute the size of our input after the down and flatten layers
@@ -234,6 +238,7 @@ class Discriminator(nn.Module):
         for i in range(len(self.down)):
             y = self.down[i](y)
             
+        y = self.dropout(y)
         y = self.flatten(y)
         y = self.linear(y)
         y = self.sigmoid(y)
