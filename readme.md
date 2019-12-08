@@ -10,7 +10,7 @@ description: Project at VITA lab - Preliminary notes
 
 # Denoising with Generative models
 
-The report for this project can be found on [vita.bilat.xyz](vita.bilat.xyz)
+The report for this project can be found on [vita.bilat.xyz](http://vita.bilat.xyz)
 
 ## How to run
 
