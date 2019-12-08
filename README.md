@@ -5,6 +5,32 @@ published: true
 description: Project at VITA lab - Preliminary notes 
 ---
 
+# Final README
+
+## Introduction
+
+## Architecture
+
+### Original Architecture
+
+
+### GAN
+
+
+### Collaborative GAN
+
+## Code
+
+### How to run
+
+### How to edit
+
+## Results
+
+## Potential improvements
+
+
+
 # Week 2 : Learning pytorch, finding data
 
 ## Beethoven dataset
