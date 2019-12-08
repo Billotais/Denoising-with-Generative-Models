@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+import math
 
 from utils import *
 DROPOUT = 0.5
@@ -49,7 +51,7 @@ class Downsampling_G(nn.Module):
         self.relu = nn.LeakyReLU(0.2)
         
         
-    def forward(self, x, training):
+    def forward(self, x):
         if self.verbose: print("Before conv down : " + str(x.size()))
         y = self.conv(x)
         y = self.relu(y)
@@ -68,10 +70,10 @@ class Bottleneck_G(nn.Module):
         self.relu = nn.LeakyReLU(0.2)
       
         
-    def forward(self, x, training):
+    def forward(self, x):
         if self.verbose: print("Bottleneck before: " + str(x.size()))
         y = self.conv(x)
-        if training: y = self.dropout(y)
+        y = self.dropout(y)
         y = self.relu(y)
         if self.verbose: print("Bottleneck after: " + str(y.size()))
         return y
@@ -88,16 +90,15 @@ class Upsampling_G(nn.Module):
         self.subpixel = Subpixel()
         self.concat = Concat()
         
-    def forward(self, x1, x2, training):
+    def forward(self, x1, x2):
         if self.verbose: print("Upsampling before: " + str(x1.size()))
         y = self.conv(x1)
-        if training: y = self.dropout(y)
+        y = self.dropout(y)
         y = self.relu(y)
         y = self.subpixel(y)
         y = self.concat(y, x2)
         if self.verbose: print("Upsampling after: " + str(y.size()))
         return y
-
 
 
 class LastConv_G(nn.Module):
@@ -109,7 +110,7 @@ class LastConv_G(nn.Module):
         self.add = Add()
            
         
-    def forward(self, x1, x2, training, lastskip):
+    def forward(self, x1, x2, lastskip):
         if self.verbose: print("Final before: " + str(x1.size()))
         y = self.conv(x1)
         if self.verbose: print("Final conv: " + str(y.size()))
@@ -134,17 +135,15 @@ class Generator(nn.Module):
         n_channels, size_filters = get_sizes_for_layers(B)
         
         # Downsampling
-        self.down = []
-        for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters):
-            self.down.append(Downsampling_G(n_ch_in, n_ch_out, size, verbose))
+
+        self.down = nn.ModuleList([Downsampling_G(n_ch_in, n_ch_out, size, verbose) for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters)])
             
         # Bottlneck
         self.bottleneck = Bottleneck_G(n_channels[-1], size_filters[-1], verbose)
         
         # Upsampling
-        self.up = []
-        for n_ch_in, n_ch_out, size in args_up(n_channels, size_filters):
-            self.up.append(Upsampling_G(n_ch_in*2, n_ch_out*2, size, verbose))
+
+        self.up = nn.ModuleList([Upsampling_G(n_ch_in*2, n_ch_out*2, size, verbose) for n_ch_in, n_ch_out, size in args_up(n_channels, size_filters)])
               
         # Final layer
         self.last = LastConv_G(n_channels[0]*2, 9, verbose)
@@ -154,27 +153,24 @@ class Generator(nn.Module):
 
     def forward(self, x, lastskip=True):
 
-        # Since the network is not able to automaticaly propagate the
-        # "training" variable down the modules (probably because we put the modules in a list)
-        # I added the "training" argument to the forward function.
-
+       
         # Downsampling
         down_out = []
         xi = x
         for i in range(len(self.down)):
-            xi = self.down[i](xi, self.training)
+            xi = self.down[i](xi)
             down_out.append(xi)
             
         # Bottleneck
-        b = self.bottleneck(xi, self.training)
+        b = self.bottleneck(xi)
         
         # Upsampling
         y = b
         for i in range(len(self.up)):
-            y = self.up[i](y, down_out[-(i+1)], self.training)
+            y = self.up[i](y, down_out[-(i+1)])
             
         # Final layer
-        y = self.last(y, x, self.training, lastskip)
+        y = self.last(y, x, lastskip)
        
         return y
 
@@ -191,7 +187,7 @@ class Downsampling_D(nn.Module):
         self.relu = nn.LeakyReLU(0.2)
         
         
-    def forward(self, x, training):
+    def forward(self, x):
         if self.verbose: print("Before conv down : " + str(x.size()))
         y = self.conv(x)
         y = self.batchnorm(y)
@@ -200,7 +196,7 @@ class Downsampling_D(nn.Module):
         return y
 
 class Discriminator(nn.Module):
-    def __init__(self, depth, dropout, verbose=0):
+    def __init__(self, depth, dropout, input_size, verbose=0):
         super(Discriminator, self).__init__()
 
         global  DROPOUT
@@ -211,27 +207,55 @@ class Discriminator(nn.Module):
         n_channels, size_filters = get_sizes_for_layers(B)
         
         # Downsampling
-        self.down = []
-        for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters):
-            self.down.append(Downsampling_D(n_ch_in, n_ch_out, size, verbose))
-            
-        
-        
-        
-        
+        self.down = nn.ModuleList([Downsampling_D(n_ch_in, n_ch_out, size, verbose) for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters)])
+        # Flatten
+        self.flatten = nn.Flatten()
 
-    def forward(self, x, lastskip=True):
+        # Compute input size on the fly
 
-        # Since the network is not able to automaticaly propagate the
-        # "training" variable down the modules (probably because we put the modules in a list)
-        # I added the "training" argument to the forward function.
+        self.dropout = nn.Dropout(p=DROPOUT)
+        self.flattened_input_size = self.get_flatten_features(input_size, self.down, self.flatten)
+        self.linear = nn.Linear(self.flattened_input_size, 1)
+
+        self.sigmoid = nn.Sigmoid()
+
+
+
+
+    # Helper to compute the size of our input after the down and flatten layers
+    def get_flatten_features(self, input_size, down, flatten):
+        f = Variable(torch.ones(1,*input_size))
+        for i in range(len(self.down)):
+            f = down[i](f)
+        f = flatten(f)
+        return int(np.prod(f.size()[1:]))
+
+    def forward(self, x):
+
 
         # Downsampling
         y = x
         for i in range(len(self.down)):
-            y = self.down[i](y, self.training)
+            y = self.down[i](y)
             
-       
-       
+        y = self.dropout(y)
+        y = self.flatten(y)
+        y = self.linear(y)
+        y = self.sigmoid(y)
+
         return y
+
+
+
+
+
+# net = Discriminator(4, 0.5, (1, 1024))
+# #net = Generator(4, 0.5)
+# print(net)
+
+# input = torch.rand(32, 1, 1024)
+
+# print(net(input))
+
+
     
