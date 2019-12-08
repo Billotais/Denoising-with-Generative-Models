@@ -12,7 +12,7 @@ def test(gen, discr, loader, count, name, loss,  device, gan):
     cuda = torch.cuda.is_available()
     losses = []
     outputs = []
-    bar = Bar('Testing', max=count)
+    #bar = Bar('Testing', max=count)
     with torch.no_grad():
         for x_test, y_test in loader:
             if cuda: 
@@ -25,9 +25,9 @@ def test(gen, discr, loader, count, name, loss,  device, gan):
             losses.append(loss)
     
             outputs.append(y_test_hat.to('cpu'))
-            bar.next()
+            #bar.next()
             if (count > 0 and len(losses) >= count ): break
-        bar.finish()
+        #bar.finish()
     plt.plot(losses)
     plt.yscale('log')
     plt.savefig('out/'+name+'/test.png')

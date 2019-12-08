@@ -12,7 +12,7 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
-    train_step = make_train_step_gan(gen, discr, loss, 0.2, optim_g, optim_d, gan)
+    train_step = make_train_step_gan(gen, discr, loss, 1, optim_g, optim_d, gan)
     test_step = make_test_step_gan(gen, discr, loss, gan)
 
     cuda = torch.cuda.is_available()
@@ -25,25 +25,23 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
     loss_normal_buffer = []
     loss_buffer_gan = []
 
-    scheduler_g = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_g, threshold=1e-2, cooldown=2, verbose=True)
-    scheduler_d = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_d, threshold=1e-2, cooldown=2, verbose=True)
+    scheduler_g = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_g, factor=0.5, threshold=1e-2, cooldown=0, verbose=True)
+    scheduler_d = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_d, factor=0.5, threshold=1e-2, cooldown=0, verbose=True)
    
     gan_is_low = False
 
     for epoch in range(1, epochs+1):
-
-        
 
         # correct the count variable if needed
         total = len(loader)
         if (total < count or count < 0): 
             count = total 
         
-        bar = progressbar.ProgressBar(max_value=count)
+        #bar = progressbar.ProgressBar(max_value=count)
         curr_count = 0
 
         for x_batch, y_batch in loader:
-            bar.update(curr_count)
+            #bar.update(curr_count)
             if cuda: 
                 gen.cuda()
                 discr.cuda()
@@ -54,6 +52,7 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
             # Train using the current batch
             loss, loss_normal, loss_gan = train_step(x_batch, y_batch, gan_is_low)
             if loss_gan < 0.01: gan_is_low = True
+
             loss_buffer.append(loss)
             loss_normal_buffer.append(loss_normal)
             loss_buffer_gan.append(loss_gan)
@@ -63,11 +62,15 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
 
             # If 100 batches done
             if (len(loss_buffer) % 100 == 0):
-                #print("c100 bactches")
+               
                 # Get average train loss
                 losses.append(sum(loss_buffer)/len(loss_buffer))
                 losses_gan.append(sum(loss_buffer_gan)/len(loss_buffer_gan))
                 losses_normal.append(sum(loss_normal_buffer)/len(loss_normal_buffer))
+
+                print(
+                    "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
+                    % (epoch, epochs, curr_count, total, losses[-1], losses_gan[-1]))
                 loss_buffer = []
                 loss_normal_buffer = []
                 loss_buffer_gan = []
@@ -89,13 +92,11 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
                 val_losses_gan.append(sum(val_loss_buffer_gan)/len(val_loss_buffer_gan))
                 # Every 500, plot and decrease lr in needed
                 if (len(losses) % 5 == 0):
-                    plot(losses, val_losses, losses_gan, val_losses_gan, name, gan)
+                    plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, name, gan)
                     if scheduler:
                         scheduler_g.step(val_losses[-1])
                         scheduler_d.step(val_losses_gan[-1])
-
-        
-                    
+      
 
         # Save the model for the epoch
         torch.save({
@@ -110,10 +111,6 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
         np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
         np.save('out/' + name + '/loss_train_gan.npy', np.array(losses_gan))
         np.save('out/' + name + '/loss_test_gan.npy', np.array(val_losses_gan))
-
-       
-
-        
 
         
     print("Model trained")
@@ -144,13 +141,9 @@ def make_train_step_gan(generator, discriminator, loss, lambda_d, optimizer_g, o
             loss_g_adv = loss_gan(prediction, ones_target(N)) 
         # Compute the global loss
         loss_g = (loss_g_normal + loss_g_normal.item()*lambda_d*loss_g_adv)
-        # ESAYER DINVERSER LES LABELS
         # Propagate
         loss_g.backward()
         optimizer_g.step()
-        #scheduler_g.step()
-
-        
 
         #####################
         # Train discriminator
@@ -167,15 +160,15 @@ def make_train_step_gan(generator, discriminator, loss, lambda_d, optimizer_g, o
             # Train with fake data
             prediction_fake = discriminator(yhat.detach())
             loss_d_fake = loss_gan(prediction_fake, zeros_target(N))
-            loss_d_fake.backward()
 
             loss_d = ((loss_d_real + loss_d_fake) / 2)
 
             loss_d.backward()
+            loss_d = loss_d.item()
             # Propagate
             optimizer_d.step()
 
-        return loss_g.item(), loss_g_normal.item(), loss_d.item()
+        return loss_g.item(), loss_g_normal.item(), loss_d
     return train_step
 
 

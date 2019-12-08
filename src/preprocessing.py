@@ -18,15 +18,20 @@ seed(111)
 
 def sample(filename_x, filename_y, audio_rate, file_rate):
 
-    # print(filename_x)
-    # print(filename_y)
+    print(filename_x)
+    print(filename_y)
 
-    name_x = ".".join(filename_x.split('.')[:-1]) + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[-1]
+    #name_x = ".".join(filename_x.split('.')[:-1]) + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[-1]
+    name_x = filename_x.split('.')[0] + "-rate_" + str(int(audio_rate)) + "_x." + filename_x.split('.')[-1]
+    #print(filename_x.split('.'))
+    #print(name_x)
     # Get the compressed data = input
     # Compress it and then upsample at the same rate as the target so the network works
     os.system('sox ' + filename_x + ' -r ' + str(audio_rate) + ' tmp/compressed.wav')
     os.system('sox tmp/compressed.wav -r ' + str(file_rate) + " " + name_x)
-    name_y = filename_y.split('.')[0] + "-rate_" + str(file_rate) + "_y." + filename_y.split('.')[1]
+    name_y = filename_y.split('.')[0] + "-rate_" + str(int(file_rate)) + "_y." + filename_y.split('.')[1]
+    #print(filename_y)
+    #print(name_y)
     # Compress it at the target rate directly
     os.system('sox ' + filename_y + ' -r ' + str(file_rate) + " " + name_y)
 
