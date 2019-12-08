@@ -39,34 +39,34 @@ def init():
 
     ap = argparse.ArgumentParser()
    
-    ap.add_argument("-c", "--count", required=False, help="number of mini-batches used for training", type=int, default=50)
-    ap.add_argument("-o", "--out", required=False, help="number of samples to output", type=int, default=500)
-    ap.add_argument("-e", "--epochs", help="number of epochs, default 1", type=int, default=1)
-    ap.add_argument("-b", "--batch", help="size of a training batch, default 32", type=int, default=32)
-    ap.add_argument("-w", "--window", help="size of the sliding window, default 2048", type=int, default=2048)
-    ap.add_argument("-s", "--stride", help="stride of the sliding window, default 1024", type=int, default=1024)
-    ap.add_argument("-d", "--depth", help="number of layers of the network, default 4", type=int, default=4)
-    ap.add_argument("-n", "--name",  required=True, help="name of model", type=str)
-    ap.add_argument("--dropout", help="value fo the dropout in the entwork", type=float, default=0.5)
-    ap.add_argument("--train_n", help="number of songs used to train, default 1", type=int, default=1)
-    ap.add_argument("--test_n", help="number of songs used to test, default 1", type=int, default=1)
-    ap.add_argument("--load",  help="load already trained model to evaluate ? 0 or 1, default 0", type=int, default=0)
-    ap.add_argument("--continue", help="load already trained model to continue training ? 0 or 1, default 0", type=int, default=0)
-    ap.add_argument("--dataset", help="type of the dataset : 'simple' or 'name of dataset type'", type=str, default="simple")
-    ap.add_argument("--dataset_args", help="optional arguments for specific datasets, string separated by commas", type=str)
-    ap.add_argument("--data_root", help="root of the dataset", type=str, default="/data/lois-data/models/maestro/")
-    ap.add_argument("--rate", required=True, help="Sample rate of the output file", type=int)
-    ap.add_argument("--preprocessing", required=True, help="Preprocessing pipeline, a string with each step of the pipeline separated by a comma", type=str)
-    ap.add_argument("--special", required=False, help="Use a special pipeline in the code", type=str, default="normal")
-    ap.add_argument("--gan", required=False, help="lambda for the gan", type=float, default=0)
-    ap.add_argument("--lr_g", required=False, help="learning rate for the generator", type=float, default=0.0001)
-    ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator", type=float, default=0.0001)
-    ap.add_argument("--scheduler", required=False, help="choose to enable the scheduler", type=bool, default=False)
+    ap.add_argument("-c", "--count", required=False, help="number of mini-batches per epoch [int], default=-1 (use all data) ", type=int, default=-1)
+    ap.add_argument("-o", "--out", required=False, help="number of samples for the output file [int], default=500", type=int, default=500)
+    ap.add_argument("-e", "--epochs", help="number of epochs [int], default=10", type=int, default=10)
+    ap.add_argument("-b", "--batch", help="size of a minibatch [int], default=32", type=int, default=32)
+    ap.add_argument("-w", "--window", help="size of the sliding window [int], default=2048", type=int, default=2048)
+    ap.add_argument("-s", "--stride", help="stride of the sliding window [int], default=1024", type=int, default=1024)
+    ap.add_argument("-d", "--depth", help="number of layers of the network [int], default=4, maximum allowed is log2(window)-1", type=int, default=4)
+    ap.add_argument("-n", "--name",  required=True, help="name of the folder in which we want to save data for this model [string], mandatory", type=str)
+    ap.add_argument("--dropout", help="value for the dropout used the network [float], default=0.5", type=float, default=0.5)
+    ap.add_argument("--train_n", help="number of songs used to train [int], default=-1 (use all songs)", type=int, default=-1)
+    ap.add_argument("--test_n", help="number of songs used to test [int], default=1", type=int, default=1)
+    ap.add_argument("--load",  help="load already trained model to evaluate [bool], default=False", type=bool, default=False)
+    ap.add_argument("--continue", help="load already trained model to continue training [bool], default=False, not implemented yet", type=bool, default=False)
+    ap.add_argument("--dataset", help="type of the dataset[simple|type], where 'type' is a custom dataset type implemented in load_data(), default=simple", type=str, default="simple")
+    ap.add_argument("--dataset_args", help="optional arguments for specific datasets, strings separated by commas", type=str)
+    ap.add_argument("--data_root", help="root of the dataset [path], default=/data/lois-data/models/maestro", type=str, default="/data/lois-data/models/maestro/")
+    ap.add_argument("--rate", required=True, help="Sample rate of the output file [int], mandatory", type=int)
+    ap.add_argument("--preprocessing", required=True, help="Preprocessing pipeline, a string with each step of the pipeline separated by a comma, more details in readme file", type=str)
+    #ap.add_argument("--special", required=False, help="Use a special pipeline in the code", type=str, default="normal")
+    ap.add_argument("--gan", required=False, help="lambda for the gan loss [float], default=0 (meaning gan disabled)", type=float, default=0)
+    ap.add_argument("--lr_g", required=False, help="learning rate for the generator [float], default=0.0001", type=float, default=0.0001)
+    ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator [float], default=0.0001]", type=float, default=0.0001)
+    ap.add_argument("--scheduler", required=False, help="enable the scheduler [bool], default=False", type=bool, default=False)
 
     args = ap.parse_args()
     variables = vars(args)
-    if (variables['special'] == 'overfit-sr'):
-        return overfit_sr()
+    #if (variables['special'] == 'overfit-sr'):
+    #    return overfit_sr()
   
     global ROOT
     
@@ -81,8 +81,8 @@ def init():
     depth = variables['depth']
     train_n = variables['train_n']
     test_n = variables['test_n']
-    load = True if variables['load'] == 1 else 0
-    continue_train = True if variables['continue'] == 1 else 0
+    load = variables['load']
+    continue_train = variables['continue']
     dataset = variables['dataset']
     dataset_args = variables['dataset_args']
     
