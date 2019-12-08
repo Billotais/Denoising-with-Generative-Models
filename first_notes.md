@@ -5,6 +5,7 @@ published: true
 description: Project at VITA lab - Preliminary notes 
 ---
 
+
 # Week 2 : Learning pytorch, finding data
 
 ## Beethoven dataset
