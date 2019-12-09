@@ -34,7 +34,7 @@ def test(gen, discr, loader, count, name, loss,  device, gan):
     plt.clf()
     return outputs
 
-def make_test_step_gan(generator, discriminator, loss_fn, GAN):
+def make_test_step_gan(generator, discriminator, ae, loss_fn, gan_lb, ae_lb):
 
     def test_step(x, y):
         N = y.size(0)
@@ -47,11 +47,17 @@ def make_test_step_gan(generator, discriminator, loss_fn, GAN):
 
         # Loss of D
         loss_d = 0
-        if GAN:
+        if gan_lb:
             pred = discriminator(yhat)
             loss_d = loss(pred, zeros_target(N)).item()
 
-        return loss_g, loss_d, yhat
+        # Loss of AE
+        loss_ae = 0
+        if ae_lb:
+            _, pred = ae(yhat)
+            loss_ae = loss_fn(pred, yhat).item()
+
+        return loss_g, loss_d, loss_ae, yhat
 
     return test_step
 

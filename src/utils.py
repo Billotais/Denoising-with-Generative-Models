@@ -97,7 +97,7 @@ def create_output_audio(outputs, rate, name, window, stride, batch):
     out_formated = out.reshape((1, out.size()[2]))
     torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=16, channels_first=True)
 
-def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, name, GAN):
+def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, loss_train_ae, loss_test_ae, name, GAN, AE):
 
 
     mpl.style.use('seaborn')
@@ -155,5 +155,32 @@ def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, name
         ax3.legend()
 
         fig.savefig('out/'+name+'/loss_gan.png', bbox_inches='tight')
+        fig.clf()
+        plt.close()
+    if (AE):
+        # Plot discriminator loss
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,10))
+        fig.suptitle('Loss AutoEncoder')
+    
+        ax1.plot(loss_train_ae, label='Train loss', color='b')
+        ax1.plot(loss_test_ae, label='Test loss', color='r')
+        ax1.set_yscale('log')
+        ax1.set_xlabel('100*batch')
+        ax1.set_ylabel('loss')
+        ax1.legend()
+
+        ax2.plot(loss_train_ae, label='Train loss', color='b')
+        ax2.set_yscale('log')
+        ax2.set_xlabel('100*batch')
+        ax2.set_ylabel('loss')
+        ax2.legend()
+
+        ax3.plot(loss_test_ae, label='Test loss', color='r')
+        ax3.set_yscale('log')
+        ax3.set_xlabel('100*batch')
+        ax3.set_ylabel('loss')
+        ax3.legend()
+
+        fig.savefig('out/'+name+'/loss_ae.png', bbox_inches='tight')
         fig.clf()
         plt.close()

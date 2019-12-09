@@ -19,7 +19,7 @@ from torch.utils.data import ConcatDataset, DataLoader
 
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDataset, AudioDataset
 from files import MAESTROFiles, SimpleFiles
-from network import Generator, Discriminator
+from network import Generator, Discriminator, AutoEncoder
 from utils import (concat_list_tensors, cut_and_concat_tensors, plot, create_output_audio)
 from train import make_train_step_gan, train
 from test import  make_test_step_gan, test
@@ -59,8 +59,10 @@ def init():
     ap.add_argument("--preprocessing", required=True, help="Preprocessing pipeline, a string with each step of the pipeline separated by a comma, more details in readme file", type=str)
     #ap.add_argument("--special", required=False, help="Use a special pipeline in the code", type=str, default="normal")
     ap.add_argument("--gan", required=False, help="lambda for the gan loss [float], default=0 (meaning gan disabled)", type=float, default=0)
+    ap.add_argument("--ae", required=False, help="lambda for the audoencoder loss [float], default=0 (meaning autoencoder disabled)", type=float, default=0)
     ap.add_argument("--lr_g", required=False, help="learning rate for the generator [float], default=0.0001", type=float, default=0.0001)
     ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator [float], default=0.0001]", type=float, default=0.0001)
+    ap.add_argument("--lr_ae", required=False, help="learning rate for the autoencoder [float], default=0.0001]", type=float, default=0.0001)
     ap.add_argument("--scheduler", required=False, help="enable the scheduler [bool], default=False", type=bool, default=False)
 
     args = ap.parse_args()
@@ -71,6 +73,7 @@ def init():
     global ROOT
     
     gan = variables['gan']
+    ae = variables['ae']
     ROOT = variables['data_root']
     count = variables['count']
     out = variables['out']
@@ -92,6 +95,7 @@ def init():
     dropout = variables['dropout']
     lr_g = variables['lr_g']
     lr_d = variables['lr_d']
+    lr_ae = variables['lr_ae']
     scheduler = variables['scheduler']
     print(scheduler)
     
@@ -106,7 +110,7 @@ def init():
     with open("out/" + name + "/command", "w") as text_file:
         text_file.write(" ".join(sys.argv))
     #print("".join(sys.argv))
-    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, scheduler)
+    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, ae, scheduler)
     
 
 
@@ -118,16 +122,18 @@ def init_net(depth, dropout, input_shape):
     
     gen = Generator(depth, dropout, verbose = 0)
     discr = Discriminator(depth, dropout, input_shape, verbose = 0)
+    ae = AutoEncoder(depth, dropout, verbose = 0)
 
     if torch.cuda.is_available():
         gen.cuda()
         discr.cuda()
+        ae.cuda()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using : " + str(device))
     print("Network initialized")
-    print(gen)
-    print(discr)
-    return gen, discr, device
+    # print(gen)
+    # print(discr)
+    return gen, discr, ae, device
 
 def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, stride, dataset_args, run_name):
     
@@ -179,14 +185,15 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
 
 
 
-def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, scheduler):
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, scheduler):
     # Init net and cuda
-    gen, discr, device = init_net(depth, dropout, (1, window))
+    gen, discr, ae, device = init_net(depth, dropout, (1, window))
     # Open data, split train and val set
     train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, dataset_args=dataset_args, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
 
     adam_gen = optim.Adam(gen.parameters(), lr=lr_g)
     adam_disrc = optim.Adam(discr.parameters(), lr=lr_d)
+    adam_ae = optim.Adam(ae.parameters(), lr=lr_ae)
     loss = nn.MSELoss()
 
     if load: 
@@ -194,17 +201,19 @@ def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr
         checkpoint = torch.load("out/" + name + "models/model.tar")
         gen.load_state_dict(checkpoint['gen_state_dict'])
         discr.load_state_dict(checkpoint['discr_state_dict'])
+        ae.load_state_dict(checkpoint['ae_state_dict'])
         adam_gen.load_state_dict(checkpoint['optim_g_state_dict'])
         adam_discr.load_state_dict(checkpoint['optim_d_state_dict'])
+        adam_ae.load_state_dict(checkpoint['optim_ae_state_dict'])
         # gen = torch.load("out/" + name + "models/model_gen.pt")
         # gen.eval()
         # discr = torch.load("out/" + name + "models/model_discr.pt")
         # discr.eval()
 
     if ((not load) or continue_train): 
-        train(gen=gen, discr=discr, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, device=device, gan=gan, scheduler=scheduler)
+        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler)
 
-    outputs = test(gen=gen, discr=discr, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device, gan=gan)
+    outputs = test(gen=gen, discr=discr, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device, gan=gan_lb)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 

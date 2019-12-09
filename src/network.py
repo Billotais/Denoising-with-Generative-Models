@@ -275,7 +275,7 @@ class LastConv_AE(nn.Module):
         
     def forward(self, x):
         if self.verbose: print("Final before: " + str(x1.size()))
-        y = self.conv(x1)
+        y = self.conv(x)
         if self.verbose: print("Final conv: " + str(y.size()))
         y = self.subpixel(y)
         if self.verbose: print("Final subpixel: " + str(y.size()))
@@ -310,14 +310,12 @@ class AutoEncoder(nn.Module):
         
         
 
-    def forward(self, x, lastskip=True):
+    def forward(self, x):
 
         # Downsampling
-        down_out = []
         xi = x
         for i in range(len(self.down)):
             xi = self.down[i](xi)
-            down_out.append(xi)
             
         # Bottleneck
         b = self.bottleneck(xi)
@@ -330,15 +328,18 @@ class AutoEncoder(nn.Module):
         # Final layer
         y = self.last(y)
        
-        return y
+        return b, y
 
+""" 
 # net = Discriminator(4, 0.5, (1, 1024))
+net = AutoEncoder(4, 0.5)
 # #net = Generator(4, 0.5)
-# print(net)
+print(net)
 
-# input = torch.rand(32, 1, 1024)
+input = torch.rand(32, 1, 1024)
 
-# print(net(input))
+print(net(input)) 
+"""
 
 
     
