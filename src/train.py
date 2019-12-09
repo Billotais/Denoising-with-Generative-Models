@@ -12,7 +12,7 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
-    train_step = make_train_step_gan(gen, discr, loss, 1, optim_g, optim_d, gan)
+    train_step = make_train_step_gan(gen, discr, loss, gan, optim_g, optim_d, gan)
     test_step = make_test_step_gan(gen, discr, loss, gan)
 
     cuda = torch.cuda.is_available()
@@ -51,7 +51,6 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
             
             # Train using the current batch
             loss, loss_normal, loss_gan = train_step(x_batch, y_batch, gan_is_low)
-            if loss_gan < 0.01: gan_is_low = True
 
             loss_buffer.append(loss)
             loss_normal_buffer.append(loss_normal)
@@ -62,7 +61,8 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
 
             # If 100 batches done
             if (len(loss_buffer) % 100 == 0):
-               
+                              
+                gan_is_low = True
                 # Get average train loss
                 losses.append(sum(loss_buffer)/len(loss_buffer))
                 losses_gan.append(sum(loss_buffer_gan)/len(loss_buffer_gan))
@@ -95,7 +95,7 @@ def train(gen, discr, loader, val, epochs, count, name, loss, optim_g, optim_d, 
                     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, name, gan)
                     if scheduler:
                         scheduler_g.step(val_losses[-1])
-                        scheduler_d.step(val_losses_gan[-1])
+                        #scheduler_d.step(val_losses_gan[-1])
       
 
         # Save the model for the epoch
