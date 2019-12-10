@@ -60,6 +60,7 @@ def init():
     #ap.add_argument("--special", required=False, help="Use a special pipeline in the code", type=str, default="normal")
     ap.add_argument("--gan", required=False, help="lambda for the gan loss [float], default=0 (meaning gan disabled)", type=float, default=0)
     ap.add_argument("--ae", required=False, help="lambda for the audoencoder loss [float], default=0 (meaning autoencoder disabled)", type=float, default=0)
+    ap.add_argument("--collab", required=False, help="Enable the collaborative gan [bool], default=False", type=bool, default=False)
     ap.add_argument("--lr_g", required=False, help="learning rate for the generator [float], default=0.0001", type=float, default=0.0001)
     ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator [float], default=0.0001]", type=float, default=0.0001)
     ap.add_argument("--lr_ae", required=False, help="learning rate for the autoencoder [float], default=0.0001]", type=float, default=0.0001)
@@ -74,6 +75,7 @@ def init():
     
     gan = variables['gan']
     ae = variables['ae']
+    collab = variables['collab']
     ROOT = variables['data_root']
     count = variables['count']
     out = variables['out']
@@ -110,7 +112,7 @@ def init():
     with open("out/" + name + "/command", "w") as text_file:
         text_file.write(" ".join(sys.argv))
     #print("".join(sys.argv))
-    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, ae, scheduler)
+    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, ae, collab, scheduler)
     
 
 
@@ -185,7 +187,7 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
 
 
 
-def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, scheduler):
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, scheduler):
     # Init net and cuda
     gen, discr, ae, device = init_net(depth, dropout, (1, window))
     # Open data, split train and val set
@@ -211,9 +213,9 @@ def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr
         # discr.eval()
 
     if ((not load) or continue_train): 
-        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler)
+        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler, collab=collab)
 
-    outputs = test(gen=gen, discr=discr, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device, gan=gan_lb)
+    outputs = test(gen=gen, discr=discr, ae=ae, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device, gan_lb=gan_lb, ae_lb=ae_lb, collab=collab)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 
@@ -317,7 +319,11 @@ if __name__ == "__main__":
     #  
 
 
-
+# CGAN
+# Overfit
+# Tester ae
+# Faire slides
+# Quand meme mettre les loss des différents moodèles
 
 
 

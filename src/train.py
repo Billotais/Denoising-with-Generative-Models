@@ -4,16 +4,16 @@ import torch.optim
 from progress.bar import Bar
 import progressbar
 import numpy as np
-from test import make_test_step_gan
+from test import make_test_step
 
 
-def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler):
+def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab):
 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
-    train_step = make_train_step_gan(gen, discr, ae, loss, gan, ae_lb, optim_g, optim_d, optim_ae)
-    test_step = make_test_step_gan(gen, discr, ae, loss, gan, ae_lb)
+    train_step = make_train_step(gen, discr, ae, loss, gan, ae_lb, optim_g, optim_d, optim_ae)
+    test_step = make_test_step(gen, discr, ae, loss, gan, ae_lb, collab)
 
     cuda = torch.cuda.is_available()
 
@@ -123,7 +123,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
     print("Model trained")
     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, losses_ae, val_losses_ae, name, gan, ae_lb)
 
-def make_train_step_gan(generator, discriminator, ae, loss, lambda_d, lambda_ae, optimizer_g, optimizer_d, optimizer_ae):
+def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, optimizer_g, optimizer_d, optimizer_ae):
 
     def train_step(x, y, start_others):
 

@@ -131,8 +131,8 @@ class Generator(nn.Module):
         DROPOUT = dropout
         self.verbose = verbose
         
-        B = depth
-        n_channels, size_filters = get_sizes_for_layers(B)
+        self.B = depth
+        n_channels, size_filters = get_sizes_for_layers(self.B)
         
         # Downsampling
 
@@ -151,9 +151,9 @@ class Generator(nn.Module):
         
         
 
-    def forward(self, x, lastskip=True):
+    def forward(self, x, lastskip=True, collab_layer=-1, xl=None):
 
-       
+        
         # Downsampling
         down_out = []
         xi = x
@@ -167,6 +167,11 @@ class Generator(nn.Module):
         # Upsampling
         y = b
         for i in range(len(self.up)):
+            if (i == self.B-1-collab_layer):
+                if xl is None: # first pass, we return x_l and stop 
+                    return self.xl
+                else: # second pass, this time we have our new x_l, and we want to get the output from it
+                    y = self.xl
             y = self.up[i](y, down_out[-(i+1)])
             
         # Final layer
