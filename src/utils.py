@@ -185,16 +185,18 @@ def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, loss
         fig.clf()
         plt.close()
 
+# Algorthm 1 of CGAN, at the last level
+def collaborative_sampling(generator, discriminator, x, loss, N, K):
 
-def collaborative_sampling(generator, discriminator, x, loss, N):
-
-    
+    i = 0
     misclassified = True
+    layer = generator.depth-1
 
     # Get our x_l and yhat, use last layer of generator
-    xl = generator(x, lastskip=True, collab_layer=generator.depth-1, xl=None)
+    xl = generator(x, lastskip=True, collab_layer=layer, xl=None)
     yhat = generator(x)
-    while misclassified:
+    while misclassified and i < K:
+        i+=1
         pred = discriminator(yhat)
         mean = pred.mean()
         if mean < 0.5: # our sample is missclassified, we have to improve it
@@ -204,7 +206,7 @@ def collaborative_sampling(generator, discriminator, x, loss, N):
             # Update xl to an improved value
             xl = xl - 0.1*xl.grad
             # Get our new output from the generator
-            yhat = generator(x, lastskip=True, collab_layer=True, xl=xl)
+            yhat = generator(x, lastskip=True, collab_layer=layer, xl=xl)
         else: misclassified = False
 
     return yhat

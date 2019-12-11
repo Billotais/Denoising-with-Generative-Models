@@ -61,7 +61,8 @@ def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, collab)
         if collab and gan_lb:
             # apply algo 1 for the collaborative sample
             # this way we can return an improved sample
-            yhat = collaborative_sampling(generator,discriminator,x,loss,N)
+            # maximum 50 iterations
+            yhat = collaborative_sampling(generator,discriminator,x,loss,N, 50)
             
             # Apply algo 2 for Discriminator shaping 
 

@@ -21,8 +21,8 @@ from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDatas
 from files import MAESTROFiles, SimpleFiles
 from network import Generator, Discriminator, AutoEncoder
 from utils import (concat_list_tensors, cut_and_concat_tensors, plot, create_output_audio)
-from train import make_train_step_gan, train
-from test import  make_test_step_gan, test
+from train import make_train_step, train
+from test import  make_test_step, test
 import numpy as np
 
 import torch.optim
@@ -62,8 +62,8 @@ def init():
     ap.add_argument("--ae", required=False, help="lambda for the audoencoder loss [float], default=0 (meaning autoencoder disabled)", type=float, default=0)
     ap.add_argument("--collab", required=False, help="Enable the collaborative gan [bool], default=False", type=bool, default=False)
     ap.add_argument("--lr_g", required=False, help="learning rate for the generator [float], default=0.0001", type=float, default=0.0001)
-    ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator [float], default=0.0001]", type=float, default=0.0001)
-    ap.add_argument("--lr_ae", required=False, help="learning rate for the autoencoder [float], default=0.0001]", type=float, default=0.0001)
+    ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator [float], default=0.0001", type=float, default=0.0001)
+    ap.add_argument("--lr_ae", required=False, help="learning rate for the autoencoder [float], default=0.0001", type=float, default=0.0001)
     ap.add_argument("--scheduler", required=False, help="enable the scheduler [bool], default=False", type=bool, default=False)
 
     args = ap.parse_args()
