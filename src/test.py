@@ -1,4 +1,4 @@
-from utils import zeros_target, ones_target
+from utils import zeros_target, ones_target, collaborative_sampling
 import torch.nn as nn
 from progress.bar import Bar
 import matplotlib.pyplot as plt
@@ -57,30 +57,14 @@ def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, collab)
             _, pred = ae(yhat)
             loss_ae = loss_fn(pred, yhat).item()
 
-        # if the cgan is enabled, apply algo 1 for the collaborative sample
-        # this way we can return an improved sample
-
+        # if the cgan is enabled
         if collab and gan_lb:
+            # apply algo 1 for the collaborative sample
+            # this way we can return an improved sample
+            yhat = collaborative_sampling(generator,discriminator,x,loss,N)
+            
+            # Apply algo 2 for Discriminator shaping 
 
-            misclassified = True
-
-            # Get our x_l and yhat, use last layer of generator
-            xl = generator(x, lastskip=True, collab_layer=generator.depth-1, xl=None)
-            yhat = generator(x)
-            while misclassified:
-                pred = discriminator(yhat)
-                mean = pred.mean()
-                if mean < 0.5: # our sample is missclassified, we have to improve it
-                    # Get the gradiant of the discr loss wrt xl
-                    pred = discriminator(xl)
-                    loss_d = loss(pred, ones_target(N))
-                    loss_d.backward()
-                    # Update xl to an improved value
-                    xl = xl - 0.1*xl.grad
-                    # Get our new output from the generator
-                    yhat = generator(x, lastskip=True, collab_layer=True, xl=xl)
-                else: misclassified = False
-                        
 
         return loss_g, loss_d, loss_ae, yhat
 

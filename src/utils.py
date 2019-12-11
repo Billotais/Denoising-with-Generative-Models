@@ -184,3 +184,27 @@ def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, loss
         fig.savefig('out/'+name+'/loss_ae.png', bbox_inches='tight')
         fig.clf()
         plt.close()
+
+
+def collaborative_sampling(generator, discriminator, x, loss, N):
+
+    
+    misclassified = True
+
+    # Get our x_l and yhat, use last layer of generator
+    xl = generator(x, lastskip=True, collab_layer=generator.depth-1, xl=None)
+    yhat = generator(x)
+    while misclassified:
+        pred = discriminator(yhat)
+        mean = pred.mean()
+        if mean < 0.5: # our sample is missclassified, we have to improve it
+            # Get the gradiant of the discr loss wrt xl
+            loss_d = loss(pred, ones_target(N))
+            loss_d.backward()
+            # Update xl to an improved value
+            xl = xl - 0.1*xl.grad
+            # Get our new output from the generator
+            yhat = generator(x, lastskip=True, collab_layer=True, xl=xl)
+        else: misclassified = False
+
+    return yhat
