@@ -1,4 +1,4 @@
-from utils import ones_target, zeros_target, plot
+from utils import ones_target, zeros_target, plot, collaborative_sampling
 import torch.nn as nn
 import torch.optim
 from progress.bar import Bar
@@ -157,7 +157,7 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, opt
             # Compute the L2 loss over the latent tensors
             latent_y, _ = ae(y)
             latent_yhat, _ = ae(yhat)
-            loss_g_ae = loss(y, yhat) 
+            loss_g_ae = loss(latent_y, latent_yhat) 
 
         # Compute the global loss
         loss_g = (loss_g_normal + lambda_d*loss_g_adv + lambda_ae*loss_g_ae)
