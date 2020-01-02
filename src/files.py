@@ -47,7 +47,6 @@ class SimpleFiles():
         return self.files[:count]
     def get_train(self, count=-1):
         if count == -1:
-
             return self.files[:-2]
         else:
             return self.files[:min(len(self.files)-2, count)]

@@ -1,19 +1,19 @@
 from utils import ones_target, zeros_target, plot, collaborative_sampling
 import torch.nn as nn
 import torch.optim
-from progress.bar import Bar
-import progressbar
+#from progress.bar import Bar
+#import progressbar
 import numpy as np
 from test import make_test_step
 
 
-def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab):
+def train(gen, discr, ae, loader, val, epochs, count, name, loss_fn, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab):
 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
-    train_step = make_train_step(gen, discr, ae, loss, gan, ae_lb, optim_g, optim_d, optim_ae)
-    test_step = make_test_step(gen, discr, ae, loss, gan, ae_lb, collab)
+    train_step = make_train_step(gen, discr, ae, loss_fn, gan, ae_lb, optim_g, optim_d, optim_ae)
+    test_step = make_test_step(gen, discr, ae, loss_fn, gan, ae_lb, collab)
 
     cuda = torch.cuda.is_available()
 
@@ -59,7 +59,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
             if (curr_count >= count): break
 
             # If 100 batches done
-            if (len(loss_buffer) % 100 == 0):
+            if (len(loss_buffer) % 10 == 0):
                               
                 start_others = True
                 # Get average train loss
@@ -109,7 +109,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
             'optim_d_state_dict': optim_d.state_dict(),
             'ae_state_dict': ae.state_dict(),
             'optim_ae_state_dict': optim_ae.state_dict(),
-            }, "out/" + name + "/models/model_gen_" + str(epoch) + ".tar")
+            }, "out/" + name + "/models/model_" + str(epoch) + ".tar")
         # torch.save(gen, "out/" + name + "/models/model_gen_" + str(epoch) + ".pt")
         # torch.save(discr, "out/" + name + "/models/model_discr_" + str(epoch) + ".pt")
         np.save('out/' + name + '/loss_train.npy', np.array(losses))
@@ -119,7 +119,9 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
         np.save('out/' + name + '/loss_train_ae.npy', np.array(losses_ae))
         np.save('out/' + name + '/loss_test_ae.npy', np.array(val_losses_ae))
 
-        
+
+    
+    if collab and gan: discriminator_shaping(gen, discr, loader, 50, 50, optim_d, device) 
     print("Model trained")
     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, losses_ae, val_losses_ae, name, gan, ae_lb)
 
@@ -143,7 +145,7 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, opt
         yhat = generator(x)
 
         # Compute the normal loss (ususally L2)
-        loss_g_normal = loss(y, yhat) 
+        loss_g_normal = loss(yhat, y) 
 
         # Compute the adversarial loss (want want to generate realistic data)
         loss_g_adv = 0
@@ -157,10 +159,11 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, opt
             # Compute the L2 loss over the latent tensors
             latent_y, _ = ae(y)
             latent_yhat, _ = ae(yhat)
-            loss_g_ae = loss(latent_y, latent_yhat) 
+            loss_g_ae = loss(latent_yhat, latent_y) 
 
         # Compute the global loss
         loss_g = (loss_g_normal + lambda_d*loss_g_adv + lambda_ae*loss_g_ae)
+        
         # Propagate
         loss_g.backward()
         optimizer_g.step()
@@ -196,9 +199,9 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, opt
             optimizer_ae.zero_grad()
             ae.train()
 
-            # Make prediction and compute classical L2 loss
+            # Make prediction and compute classical L2 loss on the output
             _, prediction_ae = ae(y)
-            loss_ae = loss(y, prediction_ae)
+            loss_ae = loss(prediction_ae, y)
 
             # Propagate
             loss_ae.backward()
@@ -212,6 +215,30 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, opt
 
         return loss_g.item(), loss_g_normal.item(), loss_d, loss_g_ae
     return train_step
+
+
+
+def discriminator_shaping(generator, discriminator, loader, D, K, optimizer_d, device):
+
+    loss = nn.BCELoss()
+    i=0
+    for x, y in loader:
+        x = x.to(device)
+        y = y.to(device)
+        if i >= D: break
+
+        N = y.size(0)
+        pred_real = y
+        pred_fake = discriminator(collaborative_sampling(generator, discriminator, x, loss, N, K))
+        print(pred_real.shape)
+        print(ones_target(N).shape)
+        loss_real = loss(pred_real, ones_target(N))
+        loss_fake = loss(pred_fake, zeros_target(N))
+
+        loss = ((loss_real + loss_fake) / 2)
+
+        loss.backward()
+        optimizer_d.step()
 
 
 

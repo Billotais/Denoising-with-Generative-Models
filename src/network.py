@@ -167,12 +167,13 @@ class Generator(nn.Module):
         # Upsampling
         y = b
         for i in range(len(self.up)):
+            y = self.up[i](y, down_out[-(i+1)])
             if (i == self.B-1-collab_layer):
                 if xl is None: # first pass, we return x_l and stop 
-                    return self.xl
+                    return y
                 else: # second pass, this time we have our new x_l, and we want to get the output from it
-                    y = self.xl
-            y = self.up[i](y, down_out[-(i+1)])
+                    y = xl
+            
             
         # Final layer
         y = self.last(y, x, lastskip)

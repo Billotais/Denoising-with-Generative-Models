@@ -13,8 +13,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchaudio
-from progress.bar import Bar
-import progressbar
+#from progress.bar import Bar
+#import progressbar
 from torch.utils.data import ConcatDataset, DataLoader
 
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDataset, AudioDataset
@@ -49,8 +49,7 @@ def init():
     ap.add_argument("-n", "--name",  required=True, help="name of the folder in which we want to save data for this model [string], mandatory", type=str)
     ap.add_argument("--dropout", help="value for the dropout used the network [float], default=0.5", type=float, default=0.5)
     ap.add_argument("--train_n", help="number of songs used to train [int], default=-1 (use all songs)", type=int, default=-1)
-    ap.add_argument("--test_n", help="number of songs used to test [int], default=1", type=int, default=1)
-    ap.add_argument("--load",  help="load already trained model to evaluate [bool], default=False", type=bool, default=False)
+    ap.add_argument("--load",  help="load already trained model to evaluate file given as argument [string], default=''", type=str, default="")
     ap.add_argument("--continue", help="load already trained model to continue training [bool], default=False, not implemented yet", type=bool, default=False)
     ap.add_argument("--dataset", help="type of the dataset[simple|type], where 'type' is a custom dataset type implemented in load_data(), default=simple", type=str, default="simple")
     ap.add_argument("--dataset_args", help="optional arguments for specific datasets, strings separated by commas", type=str)
@@ -85,7 +84,6 @@ def init():
     stride = variables['stride']
     depth = variables['depth']
     train_n = variables['train_n']
-    test_n = variables['test_n']
     load = variables['load']
     continue_train = variables['continue']
     dataset = variables['dataset']
@@ -101,23 +99,18 @@ def init():
     scheduler = variables['scheduler']
     print(scheduler)
     
-
-    os.system("rm -rf out/" + name)
-    os.system("mkdir out/" + name)
-    os.system("mkdir out/" + name + "/models")
-    os.system("mkdir out/" + name + "/tmp")
+    if (load == ""):
+        os.system("rm -rf out/" + name)
+        os.system("mkdir out/" + name)
+        os.system("mkdir out/" + name + "/models")
+        os.system("mkdir out/" + name + "/tmp")
 
     #os.system(" ".join(sys.argv) + " > " + name + "/command")
 
     with open("out/" + name + "/command", "w") as text_file:
         text_file.write(" ".join(sys.argv))
     #print("".join(sys.argv))
-    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, ae, collab, scheduler)
-    
-
-
-
-
+    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, rate, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, ae, collab, scheduler)
 
 
 def init_net(depth, dropout, input_shape):
@@ -137,7 +130,14 @@ def init_net(depth, dropout, input_shape):
     # print(discr)
     return gen, discr, ae, device
 
-def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, stride, dataset_args, run_name):
+
+def load_single(name, dataset, preprocess, batch_size, window, stride, run_name):
+
+    dataset = AudioDataset(run_name, ROOT + "/" + name, window, stride, preprocess)
+    loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False)
+    return loader
+
+def load_data(train_n, val_n, dataset, preprocess, batch_size, window, stride, dataset_args, run_name):
     
     """
     train_n : number of files used as train data
@@ -187,33 +187,36 @@ def load_data(train_n, test_n, val_n, dataset, preprocess, batch_size, window, s
 
 
 
-def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, train_n, test_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, scheduler):
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, scheduler):
     # Init net and cuda
     gen, discr, ae, device = init_net(depth, dropout, (1, window))
     # Open data, split train and val set
-    train_loader, test_loader, val_loader = load_data(train_n=train_n, test_n=test_n, val_n=1, dataset=dataset, dataset_args=dataset_args, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
+    train_loader, test_loader, val_loader = None, None, None
+
+    if load != "": test_loader = load_single(name=load, dataset=dataset, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
+    else: train_loader, test_loader, val_loader = load_data(train_n=train_n, val_n=1, dataset=dataset, dataset_args=dataset_args, preprocess=preprocessing, batch_size=batch, window=window, stride=stride, run_name=name)
 
     adam_gen = optim.Adam(gen.parameters(), lr=lr_g)
-    adam_disrc = optim.Adam(discr.parameters(), lr=lr_d)
+    adam_discr = optim.Adam(discr.parameters(), lr=lr_d)
     adam_ae = optim.Adam(ae.parameters(), lr=lr_ae)
     loss = nn.MSELoss()
 
-    if load: 
+    if load != "": 
 
-        checkpoint = torch.load("out/" + name + "models/model.tar")
+        checkpoint = torch.load("out/" + name + "/models/model.tar")
         gen.load_state_dict(checkpoint['gen_state_dict'])
-        discr.load_state_dict(checkpoint['discr_state_dict'])
-        ae.load_state_dict(checkpoint['ae_state_dict'])
+        if gan_lb: discr.load_state_dict(checkpoint['discr_state_dict'])
+        if ae_lb: ae.load_state_dict(checkpoint['ae_state_dict'])
         adam_gen.load_state_dict(checkpoint['optim_g_state_dict'])
-        adam_discr.load_state_dict(checkpoint['optim_d_state_dict'])
-        adam_ae.load_state_dict(checkpoint['optim_ae_state_dict'])
+        if gan_lb: adam_discr.load_state_dict(checkpoint['optim_d_state_dict'])
+        if ae_lb: adam_ae.load_state_dict(checkpoint['optim_ae_state_dict'])
         # gen = torch.load("out/" + name + "models/model_gen.pt")
         # gen.eval()
         # discr = torch.load("out/" + name + "models/model_discr.pt")
         # discr.eval()
 
-    if ((not load) or continue_train): 
-        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_disrc, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler, collab=collab)
+    if ((load == "") or continue_train): 
+        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss_fn=loss, optim_g=adam_gen, optim_d=adam_discr, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler, collab=collab)
 
     outputs = test(gen=gen, discr=discr, ae=ae, loader=test_loader, count=out, name=name, loss=nn.MSELoss(), device=device, gan_lb=gan_lb, ae_lb=ae_lb, collab=collab)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)

@@ -1,6 +1,6 @@
 from utils import zeros_target, ones_target, collaborative_sampling
 import torch.nn as nn
-from progress.bar import Bar
+#from progress.bar import Bar
 import matplotlib.pyplot as plt
 import torch
 
@@ -43,7 +43,7 @@ def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, collab)
         # Loss of G
         generator.eval()
         yhat = generator(x)
-        loss_g = loss_fn(y, yhat).item()
+        loss_g = loss_fn(yhat, y).item()
 
         # Loss of D
         loss_d = 0
