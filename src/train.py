@@ -7,13 +7,13 @@ import numpy as np
 from test import make_test_step
 
 
-def train(gen, discr, ae, loader, val, epochs, count, name, loss_fn, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab):
+def train(gen, discr, ae, loader, val, epochs, count, name, loss_fn, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab, cgan):
 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
-    train_step = make_train_step(gen, discr, ae, loss_fn, gan, ae_lb, optim_g, optim_d, optim_ae)
-    test_step = make_test_step(gen, discr, ae, loss_fn, gan, ae_lb, collab)
+    train_step = make_train_step(gen, discr, ae, loss_fn, gan, ae_lb, cgan, optim_g, optim_d, optim_ae)
+    test_step = make_test_step(gen, discr, ae, loss_fn, gan, ae_lb, cgan, collab)
 
     cuda = torch.cuda.is_available()
 
@@ -125,7 +125,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss_fn, optim_g, op
     print("Model trained")
     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, losses_ae, val_losses_ae, name, gan, ae_lb)
 
-def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, optimizer_g, optimizer_d, optimizer_ae):
+def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cgan, optimizer_g, optimizer_d, optimizer_ae):
 
     def train_step(x, y, start_others):
 
@@ -150,7 +150,7 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, opt
         # Compute the adversarial loss (want want to generate realistic data)
         loss_g_adv = 0
         if lambda_d and start_others:
-            prediction = discriminator(yhat)
+            prediction = discriminator(yhat) if not cgan else discriminator(yhat, x)
             loss_g_adv = loss_gan(prediction, ones_target(N)) 
 
         # Compute the autoencoder loss
@@ -177,11 +177,11 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, opt
             discriminator.train()
 
             # Train with real data
-            prediction_real = discriminator(y)
+            prediction_real = discriminator(y) if not cgan else discriminator(y, x)
             loss_d_real = loss_gan(prediction_real, ones_target(N))
 
             # Train with fake data
-            prediction_fake = discriminator(yhat.detach())
+            prediction_fake = discriminator(yhat.detach()) if not cgan else discriminator(yhat.detach(), x)
             loss_d_fake = loss_gan(prediction_fake, zeros_target(N))
 
             loss_d = ((loss_d_real + loss_d_fake) / 2)

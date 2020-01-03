@@ -4,8 +4,8 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import torch
 
-def test(gen, discr, ae, loader, count, name, loss,  device, gan_lb, ae_lb, collab):
-    test_step = make_test_step(gen, discr, ae, loss, gan_lb, ae_lb, collab)
+def test(gen, discr, ae, loader, count, name, loss,  device, gan_lb, ae_lb, collab, cgan):
+    test_step = make_test_step(gen, discr, ae, loss, gan_lb, ae_lb, cgan, collab)
 
     # Test model
 
@@ -34,7 +34,7 @@ def test(gen, discr, ae, loader, count, name, loss,  device, gan_lb, ae_lb, coll
     plt.clf()
     return outputs
 
-def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, collab):
+def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, cgan, collab):
 
     def test_step(x, y):
         N = y.size(0)
@@ -48,7 +48,7 @@ def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, collab)
         # Loss of D
         loss_d = 0
         if gan_lb:
-            pred = discriminator(yhat)
+            pred = discriminator(yhat) if not cgan else discriminator(yhat, x)
             loss_d = loss(pred, zeros_target(N)).item()
 
         # Loss of AE
@@ -57,7 +57,7 @@ def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, collab)
             _, pred = ae(yhat)
             loss_ae = loss_fn(pred, yhat).item()
 
-        # if the cgan is enabled
+        # if collaborative gan is enabled
         if collab and gan_lb:
             # apply algo 1 for the collaborative sample
             # this way we can return an improved sample

@@ -252,6 +252,21 @@ class Discriminator(nn.Module):
         return y
 
 
+class ConditionalDiscriminator(nn.Module):
+    def __init__(self, depth, dropout, input_size, verbose=0):
+        super(ConditionalDiscriminator, self).__init__()
+        self.concat = Concat()
+        print(input_size)
+        self.discriminator = Discriminator(depth, dropout, input_size)
+        print("cgan created")
+    
+    def forward(self, x, z): # D(x knowing also z) = y
+
+        y = self.concat(x, z)
+        y = self.discriminator(y)
+        print("cgan called")
+        return y
+
 class Upsampling_AE(nn.Module):
     def __init__(self, in_ch, out_ch, size, verbose=0):
         super(Upsampling_AE, self).__init__()

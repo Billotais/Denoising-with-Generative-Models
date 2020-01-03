@@ -19,11 +19,12 @@ from torch.utils.data import ConcatDataset, DataLoader
 
 from datasets import AudioUpScalingDataset, AudioWhiteNoiseDataset, AudioIDDataset, AudioDataset
 from files import MAESTROFiles, SimpleFiles
-from network import Generator, Discriminator, AutoEncoder
+from network import Generator, Discriminator, AutoEncoder, ConditionalDiscriminator
 from utils import (concat_list_tensors, cut_and_concat_tensors, plot, create_output_audio)
 from train import make_train_step, train
 from test import  make_test_step, test
 import numpy as np
+from utils import str2bool
 
 import torch.optim
 
@@ -50,7 +51,7 @@ def init():
     ap.add_argument("--dropout", help="value for the dropout used the network [float], default=0.5", type=float, default=0.5)
     ap.add_argument("--train_n", help="number of songs used to train [int], default=-1 (use all songs)", type=int, default=-1)
     ap.add_argument("--load",  help="load already trained model to evaluate file given as argument [string], default=''", type=str, default="")
-    ap.add_argument("--continue", help="load already trained model to continue training [bool], default=False, not implemented yet", type=bool, default=False)
+    ap.add_argument("--continue", help="load already trained model to continue training [bool], default=False, not implemented yet", type=str2bool, default=False)
     ap.add_argument("--dataset", help="type of the dataset[simple|type], where 'type' is a custom dataset type implemented in load_data(), default=simple", type=str, default="simple")
     ap.add_argument("--dataset_args", help="optional arguments for specific datasets, strings separated by commas", type=str)
     ap.add_argument("--data_root", help="root of the dataset [path], default=/data/lois-data/models/maestro", type=str, default="/data/lois-data/models/maestro/")
@@ -60,22 +61,25 @@ def init():
     ap.add_argument("--loss", required=False, help="Choose the loss for the generator, [L1, L2], default='L2')", type=str, default="L2")
     ap.add_argument("--gan", required=False, help="lambda for the gan loss [float], default=0 (meaning gan disabled)", type=float, default=0)
     ap.add_argument("--ae", required=False, help="lambda for the audoencoder loss [float], default=0 (meaning autoencoder disabled)", type=float, default=0)
-    ap.add_argument("--collab", required=False, help="Enable the collaborative gan [bool], default=False", type=bool, default=False)
+    ap.add_argument("--collab", required=False, help="Enable the collaborative gan [bool], default=False", type=str2bool, default=False)
+    ap.add_argument("--cgan", required=False, help="Enable Conditional GAN [bool], default=False", type=str2bool, default=False)
     ap.add_argument("--lr_g", required=False, help="learning rate for the generator [float], default=0.0001", type=float, default=0.0001)
     ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator [float], default=0.0001", type=float, default=0.0001)
     ap.add_argument("--lr_ae", required=False, help="learning rate for the autoencoder [float], default=0.0001", type=float, default=0.0001)
-    ap.add_argument("--scheduler", required=False, help="enable the scheduler [bool], default=False", type=bool, default=False)
+    ap.add_argument("--scheduler", required=False, help="enable the scheduler [bool], default=False", type=str2bool, default=False)
 
     args = ap.parse_args()
     variables = vars(args)
     #if (variables['special'] == 'overfit-sr'):
     #    return overfit_sr()
   
+    print(variables)
     global ROOT
     
     gan = variables['gan']
     ae = variables['ae']
     collab = variables['collab']
+    cgan = variables['cgan']
     ROOT = variables['data_root']
     count = variables['count']
     out = variables['out']
@@ -99,7 +103,7 @@ def init():
     lr_d = variables['lr_d']
     lr_ae = variables['lr_ae']
     scheduler = variables['scheduler']
-    print(scheduler)
+    #print(scheduler)
     
     if (load == ""):
         os.system("rm -rf out/" + name)
@@ -112,14 +116,15 @@ def init():
     with open("out/" + name + "/command", "w") as text_file:
         text_file.write(" ".join(sys.argv))
     #print("".join(sys.argv))
-    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, rate, loss, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, ae, collab, scheduler)
+    pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, rate, loss, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan, ae, collab, cgan, scheduler)
 
 
-def init_net(depth, dropout, input_shape):
+def init_net(depth, dropout, input_shape, cgan):
     
-    gen = Generator(depth, dropout, verbose = 0)
-    discr = Discriminator(depth, dropout, input_shape, verbose = 0)
-    ae = AutoEncoder(depth, dropout, verbose = 0)
+    gen = Generator(depth, dropout, verbose=0)
+    discr = Discriminator(depth, dropout, input_shape, verbose=0) if not cgan else ConditionalDiscriminator(depth, dropout, input_shape, verbose=0)
+    ae = AutoEncoder(depth, dropout, verbose=0)
+    
 
     if torch.cuda.is_available():
         gen.cuda()
@@ -184,9 +189,12 @@ def load_data(train_n, val_n, dataset, preprocess, batch_size, window, stride, d
 
 
 
-def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, loss, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, scheduler):
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, loss, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, cgan, scheduler):
     # Init net and cuda
-    gen, discr, ae, device = init_net(depth, dropout, (1, window))
+    print(cgan)
+    print(1 if not cgan else 2)
+    gen, discr, ae, device = init_net(depth, dropout, (1 if not cgan else 2, window), cgan)
+    
     # Open data, split train and val set
     train_loader, test_loader, val_loader = None, None, None
 
@@ -213,9 +221,9 @@ def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr
         # discr.eval()
 
     if ((load == "") or continue_train): 
-        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss_fn=loss, optim_g=adam_gen, optim_d=adam_discr, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler, collab=collab)
+        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss_fn=loss, optim_g=adam_gen, optim_d=adam_discr, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler, collab=collab, cgan=cgan)
 
-    outputs = test(gen=gen, discr=discr, ae=ae, loader=test_loader, count=out, name=name, loss=loss, device=device, gan_lb=gan_lb, ae_lb=ae_lb, collab=collab)
+    outputs = test(gen=gen, discr=discr, ae=ae, loader=test_loader, count=out, name=name, loss=loss, device=device, gan_lb=gan_lb, ae_lb=ae_lb, collab=collab, cgan=cgan)
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
 
