@@ -1,0 +1,6 @@
+matplotlib
+torch
+torchaudio
+numpy
+pandas
+graphviz
