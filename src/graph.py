@@ -4,7 +4,7 @@ import re
 
 import torch.nn.functional as F
 
-from network import Net
+from network import *
 
 
 from graphviz import Digraph
@@ -77,9 +77,10 @@ def make_dot(var, params):
 
 if __name__ == '__main__':
 
-  inputs = torch.randn(1,1,1024)
-  net = Net(8)
-  y = net(Variable(inputs))
+    inputs1 = torch.randn(1,1,1024)
+    inputs2 = torch.randn(1,1,1024)
+    net = ConditionalDiscriminator(8, 0.5, (2, 1024), verbose=0)
+    y = net(Variable(inputs1), Variable(inputs2))
 
-  g = make_dot(y, net.named_parameters())
-  g.view()
+    g = make_dot(y, net.named_parameters())
+    g.view()

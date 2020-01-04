@@ -42,10 +42,10 @@ def get_sizes_for_layers(B):
 
 # The input channel count is equal to the the output channel count of the previous layer
 # Input will be all the channel counts, shifted to the right with a 1 before
-def args_down(n_channels, size_filters):
+def args_down(n_channels, size_filters, cond=False):
     """Generate an array with the arguments given to each layer for each creation\\
        Downsampling layers"""
-    return zip([1] + n_channels[:-1], n_channels, size_filters)
+    return zip([2 if cond else 1] + n_channels[:-1], n_channels, size_filters)
 
 # Input filter count is the size of the bottlneck for the first up layer
 # And then it will be the count of the previous up layer, which is equal to twice the count of the down layer

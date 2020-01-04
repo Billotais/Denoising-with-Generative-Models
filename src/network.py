@@ -202,7 +202,7 @@ class Downsampling_D(nn.Module):
         return y
 
 class Discriminator(nn.Module):
-    def __init__(self, depth, dropout, input_size, verbose=0):
+    def __init__(self, depth, dropout, input_size, verbose=0, cond=False):
         super(Discriminator, self).__init__()
 
         global  DROPOUT
@@ -213,7 +213,7 @@ class Discriminator(nn.Module):
         n_channels, size_filters = get_sizes_for_layers(B)
         
         # Downsampling
-        self.down = nn.ModuleList([Downsampling_D(n_ch_in, n_ch_out, size, verbose) for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters)])
+        self.down = nn.ModuleList([Downsampling_D(n_ch_in, n_ch_out, size, verbose) for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters, cond=cond)])
         # Flatten
         self.flatten = nn.Flatten()
 
@@ -257,14 +257,11 @@ class ConditionalDiscriminator(nn.Module):
         super(ConditionalDiscriminator, self).__init__()
         self.concat = Concat()
         print(input_size)
-        self.discriminator = Discriminator(depth, dropout, input_size)
-        print("cgan created")
+        self.discriminator = Discriminator(depth, dropout, input_size, verbose=0, cond=True)
     
     def forward(self, x, z): # D(x knowing also z) = y
-
         y = self.concat(x, z)
         y = self.discriminator(y)
-        print("cgan called")
         return y
 
 class Upsampling_AE(nn.Module):
