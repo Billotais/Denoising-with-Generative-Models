@@ -155,6 +155,12 @@ class Generator(nn.Module):
         # Final layer
         self.last = LastConv_G(n_channels[0]*2, 9, verbose)
 
+        # placeholder for the gradients
+        self.gradients = None
+
+    def activations_hook(self, grad):
+        self.gradients = grad
+
     def forward(self, x, lastskip=True, collab_layer=-1, xl=None):
 
         # Downsampling
@@ -178,14 +184,17 @@ class Generator(nn.Module):
                 if xl is None: return y
                 # second pass, this time we have our new x_l, and we want to get the output from it
                 # So we change the data at this layer, and it will be "propagated" to the other layers
-                else: y = xl
+                y = xl
+                y.register_hook(self.activations_hook)
             
             
         # Final layer
         y = self.last(y, x, lastskip)
        
         return y
-
+        
+    def get_activations_gradient(self):
+        return self.gradients
 
 ##############################
 # Code for the Discriminator #

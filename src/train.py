@@ -17,7 +17,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
 
     # create the functions used at each step of the training / testing process
     train_step = make_train_step(gen, discr, ae, loss, gan, ae_lb, cgan, optim_g, optim_d, optim_ae)
-    test_step = make_test_step(gen, discr, ae, loss, gan, ae_lb, cgan, collab)
+    test_step = make_test_step(gen, discr, ae, loss, gan, ae_lb, cgan, collab=False)
 
     cuda = torch.cuda.is_available()
 
@@ -79,7 +79,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
 
                 print(
                     "[Epoch %d/%d] [Batch %d/%d] [G loss: %f] [D loss: %f] [AE loss: %f]"
-                    % (epoch, epochs, curr_count, total, losses[-1], losses_gan[-1], losses_ae[-1]))
+                    % (epoch, epochs, curr_count, count, losses[-1], losses_gan[-1], losses_ae[-1]))
                 loss_buffer, loss_normal_buffer, loss_buffer_gan, loss_buffer_ae = [],[],[],[]
 
                 # Compute average validation loss
@@ -135,9 +135,10 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
 
 
     # If collaborative GAN is enabled, do discriminator shaping
-    if collab and gan: discriminator_shaping(gen, discr, loader, 50, 50, optim_d, device) 
-
     print("Model trained")
+    if collab and gan: discriminator_shaping(gen, discr, loader, 50, 50, optim_d, device) 
+    print("Discriminator shaping done")
+    
 
     # Do the final update on the graph
     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, losses_ae, val_losses_ae, name, gan, ae_lb)
@@ -239,9 +240,14 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cga
 
 def discriminator_shaping(generator, discriminator, loader, D, K, optimizer_d, device):
 
+    
     loss = nn.BCELoss()
 
     i=0
+    # for x_, y_ in loader:
+    #     x_ = torch.chunk(x_, x_.size(0), dim=0) 
+    #     y_ = torch.chunk(y_, y_.size(0), dim=0)
+    #     for x, y in zip(x_, y_):
     for x, y in loader:
         x = x.to(device)
         y = y.to(device)
@@ -250,14 +256,14 @@ def discriminator_shaping(generator, discriminator, loader, D, K, optimizer_d, d
         N = y.size(0)
 
         # Train with real data being our gold sample, and fake data being data that was improved by collaborative sampling
-        pred_real = y
+        pred_real = discriminator(y)
         pred_fake = discriminator(collaborative_sampling(generator, discriminator, x, loss, N, K))
 
         # Compute the loss
         loss_real = loss(pred_real, ones_target(N))
         loss_fake = loss(pred_fake, zeros_target(N))
-        loss = ((loss_real + loss_fake) / 2)
+        loss_avg = ((loss_real + loss_fake) / 2)
 
         # Propagate
-        loss.backward()
+        loss_avg.backward()
         optimizer_d.step()
