@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import torch
 
 def test(gen, discr, ae, loader, count, name, loss,  device, gan_lb, ae_lb, collab, cgan):
+
+    loss = nn.MSELoss() if loss == "L2" else nn.L1Loss()
+    
     test_step = make_test_step(gen, discr, ae, loss, gan_lb, ae_lb, cgan, collab)
 
     # Test model

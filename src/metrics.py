@@ -2,12 +2,13 @@ import torchaudio
 import torch
 import math
 import argparse
+
+# Given two files and a metric type, compute this metric on a fiven length
 def metric(file1, file2, size, metric):
     audio1, _ = torchaudio.load(file1)
     audio2, _ = torchaudio.load(file2)
     
     if (size == -1): size = min(audio1.size()[1], audio2.size()[1])
-    #print(audio1.size())
     if metric == 'snr':
         return snr(audio1[:,:size], audio2[:,:size])
     elif metric == 'lsd':
@@ -17,7 +18,6 @@ def metric(file1, file2, size, metric):
 def snr(x, y):
      
     return 10*math.log10(pow(torch.norm(y, p=2),2) /pow(torch.dist(x, y, p=2), 2))
-    #return 10*math.log10(torch.norm(y, p=2) /torch.dist(x, y, p=2))
     
 # look at the presence of specific frequencies
 def lsd(x, y, channel=0):
@@ -33,7 +33,6 @@ def lsd(x, y, channel=0):
     K = X.size()[1] # number of frequencies
     L = X.size()[2] # number of frames
 
-    #print(str(L) + " frames, " +  str(K) + " frequencies")
     sum_l = 0
     for l in range(L):
         sum_k = 0
@@ -55,6 +54,7 @@ def main():
     source = variables['source']
     target = variables['target']
     generated = variables['generated']
+
     print("SNR (higher is better)")
     print("Original " + str(metric(source, target, count, 'snr')))
     print("Improved " + str(metric(generated, target, count, 'snr')))
@@ -95,6 +95,6 @@ if __name__ == "__main__":
 # x = approximation signal
 # x = "/tmp/vita/source.wav"
 # y = "/tmp/vita/target.wav"
-x = "/home/lois/Documents/EPFL/MA3/VITA/src/out/overfit_sr_32_epochs_of_500/target.wav"
-y = "/home/lois/Documents/EPFL/MA3/VITA/src/out/overfit_sr_32_epochs_of_500/overfit_sr.wav"
+# x = "/home/lois/Documents/EPFL/MA3/VITA/src/out/overfit_sr_32_epochs_of_500/target.wav"
+# y = "/home/lois/Documents/EPFL/MA3/VITA/src/out/overfit_sr_32_epochs_of_500/overfit_sr.wav"
 #print(metric(x, y, 30000, 'lsd'))

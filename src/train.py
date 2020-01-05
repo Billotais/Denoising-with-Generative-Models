@@ -1,104 +1,116 @@
 from utils import ones_target, zeros_target, plot, collaborative_sampling
 import torch.nn as nn
 import torch.optim
-#from progress.bar import Bar
-#import progressbar
 import numpy as np
 from test import make_test_step
 
 
-def train(gen, discr, ae, loader, val, epochs, count, name, loss_fn, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab, cgan):
+def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab, cgan):
 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
     
-    train_step = make_train_step(gen, discr, ae, loss_fn, gan, ae_lb, cgan, optim_g, optim_d, optim_ae)
-    test_step = make_test_step(gen, discr, ae, loss_fn, gan, ae_lb, cgan, collab)
+
+    loss = nn.MSELoss() if loss == "L2" else nn.L1Loss()
+
+    # create the functions used at each step of the training / testing process
+    train_step = make_train_step(gen, discr, ae, loss, gan, ae_lb, cgan, optim_g, optim_d, optim_ae)
+    test_step = make_test_step(gen, discr, ae, loss, gan, ae_lb, cgan, collab)
 
     cuda = torch.cuda.is_available()
 
+    # Initialize all the buffers to save the losses
     losses, val_losses, losses_gan, val_losses_gan, losses_ae, val_losses_ae = [],[],[],[],[],[]
     loss_buffer, loss_buffer_gan, loss_buffer_ae = [],[],[]
     losses_normal, loss_normal_buffer = [],[]
     
-
+    # Initialize our two scheduler, one for the generator and one for the discriminator
     scheduler_g = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_g, factor=0.5, threshold=1e-2, cooldown=0, verbose=True)
     scheduler_d = torch.optim.lr_scheduler.ReduceLROnPlateau(optim_d, factor=0.5, threshold=1e-2, cooldown=0, verbose=True)
    
+    # Do we already start the additional networks ? no by default
     start_others = False
 
     for epoch in range(1, epochs+1):
 
-        # correct the count variable if needed
+        # correct the count variable if needed (the argument)
         total = len(loader)
         if (total < count or count < 0): 
             count = total 
         
-        #bar = progressbar.ProgressBar(max_value=count)
         curr_count = 0
 
         for x_batch, y_batch in loader:
-            #bar.update(curr_count)
-            if cuda: 
-                gen.cuda()
-                discr.cuda()
-                ae.cuda()
 
+            # Put the networks and the data on the correct devices
+           
+            gen.to(device)
+            discr.to(device)
+            ae.to(device)
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             
-            # Train using the current batch
-            loss, loss_normal, loss_gan, loss_ae = train_step(x_batch, y_batch, start_others)
+            # Train using the current batch, and save the losses
+            loss_, loss_normal, loss_gan, loss_ae = train_step(x_batch, y_batch, start_others)
 
-            loss_buffer.append(loss)
-            loss_normal_buffer.append(loss_normal)
-            loss_buffer_gan.append(loss_gan)
-            loss_buffer_ae.append(loss_ae)
+            loss_buffer.append(loss_) # Composite loss
+            loss_normal_buffer.append(loss_normal) # Generator Loss
+            loss_buffer_gan.append(loss_gan) # Discriminator Loss
+            loss_buffer_ae.append(loss_ae) # Autoencoder loss
+
             # Stop if count reached
             curr_count += 1
             if (curr_count >= count): break
 
-            # If 100 batches done
+            # If 10 batches done, compute the averages over the last 10 batches for some graphs
             if (len(loss_buffer) % 10 == 0):
                               
+                # We consider that 10 epochs is enogh to wait before starting the other networks
                 start_others = True
+
                 # Get average train loss
                 losses.append(sum(loss_buffer)/len(loss_buffer))
                 losses_gan.append(sum(loss_buffer_gan)/len(loss_buffer_gan))
                 losses_ae.append(sum(loss_buffer_ae)/len(loss_buffer_ae))
                 losses_normal.append(sum(loss_normal_buffer)/len(loss_normal_buffer))
 
+
                 print(
                     "[Epoch %d/%d] [Batch %d/%d] [G loss: %f] [D loss: %f] [AE loss: %f]"
                     % (epoch, epochs, curr_count, total, losses[-1], losses_gan[-1], losses_ae[-1]))
                 loss_buffer, loss_normal_buffer, loss_buffer_gan, loss_buffer_ae = [],[],[],[]
 
-                # Compute average test loss
+                # Compute average validation loss
                 val_loss_buffer = []
                 val_loss_buffer_gan = []
                 val_loss_buffer_ae = []
+
+                # For each sample in the validation data
                 for x_val, y_val in val:
-                    if cuda: 
-                        gen.cuda()
-                        discr.cuda()
-                        ae.cuda()
+
+                    gen.to(device)
+                    discr.to(device)
+                    ae.to(device)
                     x_val = x_val.to(device)
                     y_val = y_val.to(device)
 
-                    loss, loss_gan, loss_ae, _ = test_step(x_val, y_val)
-                    val_loss_buffer.append(loss)
+                    # COmpute and save the losses
+                    loss_, loss_gan, loss_ae, _ = test_step(x_val, y_val)
+                    val_loss_buffer.append(loss_)
                     val_loss_buffer_gan.append(loss_gan)
                     val_loss_buffer_ae.append(loss_ae)
 
+                # Compute and store the average val losses
                 val_losses.append(sum(val_loss_buffer)/len(val_loss_buffer))
                 val_losses_gan.append(sum(val_loss_buffer_gan)/len(val_loss_buffer_gan))
                 val_losses_ae.append(sum(val_loss_buffer_ae)/len(val_loss_buffer_ae))
-                # Every 500, plot and decrease lr in needed
+
+                # Every 50 batches, plot and decrease lr if needed with the scheduler
                 if (len(losses) % 5 == 0):
                     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, losses_ae, val_losses_ae, name, gan, ae_lb)
                     if scheduler:
                         scheduler_g.step(val_losses[-1])
-                        #scheduler_d.step(val_losses_gan[-1])
+                        scheduler_d.step(val_losses_gan[-1])
       
 
         # Save the model for the epoch
@@ -110,8 +122,8 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss_fn, optim_g, op
             'ae_state_dict': ae.state_dict(),
             'optim_ae_state_dict': optim_ae.state_dict(),
             }, "out/" + name + "/models/model_" + str(epoch) + ".tar")
-        # torch.save(gen, "out/" + name + "/models/model_gen_" + str(epoch) + ".pt")
-        # torch.save(discr, "out/" + name + "/models/model_discr_" + str(epoch) + ".pt")
+
+        # Save the losses
         np.save('out/' + name + '/loss_train.npy', np.array(losses))
         np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
         np.save('out/' + name + '/loss_train_gan.npy', np.array(losses_gan))
@@ -120,9 +132,12 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss_fn, optim_g, op
         np.save('out/' + name + '/loss_test_ae.npy', np.array(val_losses_ae))
 
 
-    
+    # If collaborative GAN is enabled, do discriminator shaping
     if collab and gan: discriminator_shaping(gen, discr, loader, 50, 50, optim_d, device) 
+
     print("Model trained")
+
+    # Do the final update on the graph
     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, losses_ae, val_losses_ae, name, gan, ae_lb)
 
 def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cgan, optimizer_g, optimizer_d, optimizer_ae):
@@ -144,27 +159,27 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cga
         # Generate output  distriminator
         yhat = generator(x)
 
-        # Compute the normal loss (ususally L2)
+        # Compute the normal loss (L1 or L2)
         loss_g_normal = loss(yhat, y) 
 
         # Compute the adversarial loss (want want to generate realistic data)
         loss_g_adv = 0
         if lambda_d and start_others:
-            prediction = discriminator(yhat) if not cgan else discriminator(yhat, x)
+            prediction = discriminator(yhat) if not cgan else discriminator(yhat, x) # use the correct discriminator if CGAN enabled
             loss_g_adv = loss_gan(prediction, ones_target(N)) 
 
         # Compute the autoencoder loss
         loss_g_ae = 0
         if lambda_ae and start_others:
-            # Compute the L2 loss over the latent tensors
+            # Compute the L1 or L2 loss over the latent tensors
             latent_y, _ = ae(y)
             latent_yhat, _ = ae(yhat)
             loss_g_ae = loss(latent_yhat, latent_y) 
 
-        # Compute the global loss
+        # Compute the composite loss
         loss_g = (loss_g_normal + lambda_d*loss_g_adv + lambda_ae*loss_g_ae)
         
-        # Propagate
+        # Propagate the gradiants
         loss_g.backward()
         optimizer_g.step()
 
@@ -176,19 +191,20 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cga
             optimizer_d.zero_grad()
             discriminator.train()
 
-            # Train with real data
+            # Train with "real" data, should get one as output
             prediction_real = discriminator(y) if not cgan else discriminator(y, x)
             loss_d_real = loss_gan(prediction_real, ones_target(N))
 
-            # Train with fake data
+            # Train with "fake" data, should get zeros as output
             prediction_fake = discriminator(yhat.detach()) if not cgan else discriminator(yhat.detach(), x)
             loss_d_fake = loss_gan(prediction_fake, zeros_target(N))
 
+            # Compute average loss
             loss_d = ((loss_d_real + loss_d_fake) / 2)
-
+            
+            # Propagate
             loss_d.backward()
             loss_d = loss_d.item()
-            # Propagate
             optimizer_d.step()
 
         #####################
@@ -212,8 +228,9 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cga
 
 
 
-
+        # Return all the losses
         return loss_g.item(), loss_g_normal.item(), loss_d, loss_g_ae
+
     return train_step
 
 
@@ -221,46 +238,24 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cga
 def discriminator_shaping(generator, discriminator, loader, D, K, optimizer_d, device):
 
     loss = nn.BCELoss()
+
     i=0
     for x, y in loader:
         x = x.to(device)
         y = y.to(device)
-        if i >= D: break
+        if i >= D: break # Only do it for D iterations
 
         N = y.size(0)
+
+        # Train with real data being our gold sample, and fake data being data that was improved by collaborative sampling
         pred_real = y
         pred_fake = discriminator(collaborative_sampling(generator, discriminator, x, loss, N, K))
-        print(pred_real.shape)
-        print(ones_target(N).shape)
+
+        # Compute the loss
         loss_real = loss(pred_real, ones_target(N))
         loss_fake = loss(pred_fake, zeros_target(N))
-
         loss = ((loss_real + loss_fake) / 2)
 
+        # Propagate
         loss.backward()
         optimizer_d.step()
-
-
-
-
-""" def make_train_step(model, loss_fn, optimizer):
-
-    # Builds function that performs a step in the train loop
-    def train_step(x, y):
-        print(x.size())
-        # Sets model to TRAIN mode
-        model.train()
-        # Makes predictions
-        yhat = model(x)
-        # Computes loss
-        loss = loss_fn(y, yhat)
-        # Computes gradients
-        loss.backward()
-        # Updates parameters and zeroes gradients
-        optimizer.step()
-        optimizer.zero_grad()
-        # Returns the loss
-        return loss.item()
-    
-    # Returns the function that will be called inside the train loop
-    return train_step """

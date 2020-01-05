@@ -6,7 +6,12 @@ import math
 
 from utils import *
 DROPOUT = 0.5
+RELU = 0.2
 
+
+################################
+# Objects used by all networks #
+################################
 class Subpixel(nn.Module):
     """Subpixel module"""
     def __init__(self):
@@ -42,13 +47,17 @@ class Add(nn.Module):
 
 
 
+##########################
+# Code for the Generator #
+##########################
+
 class Downsampling_G(nn.Module):
     
     def __init__(self, in_ch, out_ch, size, verbose=0):
         super(Downsampling_G, self).__init__()
         self.verbose = verbose
         self.conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=size, stride=2, padding_mode='zeros', padding=int((size-1)/2))
-        self.relu = nn.LeakyReLU(0.2)
+        self.relu = nn.LeakyReLU(RELU)
         
         
     def forward(self, x):
@@ -59,15 +68,13 @@ class Downsampling_G(nn.Module):
         return y
 
 
-
-
 class Bottleneck_G(nn.Module):
     def __init__(self, ch, size, verbose=0):
         super(Bottleneck_G, self).__init__()
         self.verbose = verbose
         self.conv =  nn.Conv1d(in_channels=ch, out_channels=ch, kernel_size=size, stride=2, padding_mode='zeros', padding = int((size-1)/2))
         self.dropout = nn.Dropout(DROPOUT)
-        self.relu = nn.LeakyReLU(0.2)
+        self.relu = nn.LeakyReLU(RELU)
       
         
     def forward(self, x):
@@ -147,13 +154,9 @@ class Generator(nn.Module):
               
         # Final layer
         self.last = LastConv_G(n_channels[0]*2, 9, verbose)
-        
-        
-        
 
     def forward(self, x, lastskip=True, collab_layer=-1, xl=None):
 
-        
         # Downsampling
         down_out = []
         xi = x
@@ -164,15 +167,18 @@ class Generator(nn.Module):
         # Bottleneck
         b = self.bottleneck(xi)
         
-        # Upsampling
+        # Upsampling, with code specific to collaborative sampling
         y = b
         for i in range(len(self.up)):
             y = self.up[i](y, down_out[-(i+1)])
-            if (i == self.B-1-collab_layer):
-                if xl is None: # first pass, we return x_l and stop 
-                    return y
-                else: # second pass, this time we have our new x_l, and we want to get the output from it
-                    y = xl
+
+            # If this is the "collaborative" layer
+            if (i == self.B-1-collab_layer): 
+                # first pass, we return x_l and stop 
+                if xl is None: return y
+                # second pass, this time we have our new x_l, and we want to get the output from it
+                # So we change the data at this layer, and it will be "propagated" to the other layers
+                else: y = xl
             
             
         # Final layer
@@ -180,7 +186,10 @@ class Generator(nn.Module):
        
         return y
 
-#############################################################################################
+
+##############################
+# Code for the Discriminator #
+##############################
 
 class Downsampling_D(nn.Module):
 
@@ -190,7 +199,7 @@ class Downsampling_D(nn.Module):
         self.verbose = verbose
         self.conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=size, stride=2, padding_mode='zeros', padding=int((size-1)/2))
         self.batchnorm = nn.BatchNorm1d(out_ch)
-        self.relu = nn.LeakyReLU(0.2)
+        self.relu = nn.LeakyReLU(RELU)
         
         
     def forward(self, x):
@@ -216,10 +225,13 @@ class Discriminator(nn.Module):
         self.down = nn.ModuleList([Downsampling_D(n_ch_in, n_ch_out, size, verbose) for n_ch_in, n_ch_out, size in args_down(n_channels, size_filters, cond=cond)])
         # Flatten
         self.flatten = nn.Flatten()
+        self.dropout = nn.Dropout(p=DROPOUT)
 
         # Compute input size on the fly
-
-        self.dropout = nn.Dropout(p=DROPOUT)
+        # We need this information as a linaer layer takes a defined input size
+        # Given the input data of the network (its shape), we can compute the input size at this linear layer
+        # by doing a forward pass with random data of the correct size
+        
         self.flattened_input_size = self.get_flatten_features(input_size, self.down, self.flatten)
         self.linear = nn.Linear(self.flattened_input_size, 1)
 
@@ -230,6 +242,7 @@ class Discriminator(nn.Module):
 
     # Helper to compute the size of our input after the down and flatten layers
     def get_flatten_features(self, input_size, down, flatten):
+        # Make a forward pass with random data
         f = Variable(torch.ones(1,*input_size))
         for i in range(len(self.down)):
             f = down[i](f)
@@ -237,7 +250,6 @@ class Discriminator(nn.Module):
         return int(np.prod(f.size()[1:]))
 
     def forward(self, x):
-
 
         # Downsampling
         y = x
@@ -251,18 +263,28 @@ class Discriminator(nn.Module):
 
         return y
 
+##########################################
+# Code for the Conditional Discriminator #
+##########################################
 
 class ConditionalDiscriminator(nn.Module):
     def __init__(self, depth, dropout, input_size, verbose=0):
         super(ConditionalDiscriminator, self).__init__()
+        # This is basically the same as the normal discriminator
+        # we just concatenate our two inputs at the begining
         self.concat = Concat()
-        print(input_size)
         self.discriminator = Discriminator(depth, dropout, input_size, verbose=0, cond=True)
     
     def forward(self, x, z): # D(x knowing also z) = y
-        y = self.concat(x, z)
+
+        # We don't want our loss to be differentiated along z
+        y = self.concat(x, z.detach())
         y = self.discriminator(y)
         return y
+
+############################
+# Code for the Autoencoder #
+############################
 
 class Upsampling_AE(nn.Module):
     def __init__(self, in_ch, out_ch, size, verbose=0):
@@ -299,6 +321,7 @@ class LastConv_AE(nn.Module):
         if self.verbose: print("Final subpixel: " + str(y.size()))
         if self.verbose: print("Final add: " + str(y.size()))
         return y
+
 class AutoEncoder(nn.Module):
 
     def __init__(self, depth, dropout, verbose=0):
@@ -324,9 +347,7 @@ class AutoEncoder(nn.Module):
               
         # Final layer
         self.last = LastConv_AE(n_channels[0]*2, 9, verbose)
-        
-        
-        
+  
 
     def forward(self, x):
 

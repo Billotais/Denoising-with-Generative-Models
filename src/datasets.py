@@ -8,8 +8,38 @@ from utils import sliding_window
 
 from preprocessing import preprocess
 
+# Not used anymore, kept for "archiving"
+class AudioDataset(Dataset):
+    def __init__(self, run_name, filename, window, stride, arguments, size=-1, start=0):
 
-# The identity dataset, loads one file 
+        # Create the two files using the preprocessing pipeline
+        in_file, out_file = preprocess(run_name, filename, arguments.split(','))
+
+        # Load the input
+        waveform_in, _ = torchaudio.load(in_file)
+        self.x = waveform_in[0]
+        # Split it using the sliding window
+        self.x = sliding_window(self.x, window, stride)
+        # Only keep necessary samples
+        self.x = self.x[start:start+size, None, :]
+
+        # Load the output
+        waveform_out, _ =  torchaudio.load(out_file)
+        self.y = waveform_out[0]
+         # Split it using the sliding window
+        self.y = sliding_window(self.y, window, stride)
+        # Only keep necessary samples
+        self.y = self.y[start:start+size, None, :]
+
+    def __getitem__(self, index):
+        return (self.x[index], self.y[index])
+
+    def __len__(self):
+        return len(self.x)
+
+
+        
+""" # The identity dataset, loads one file 
 class AudioIDDataset(Dataset):
     
     def __init__(self, filename, window, stride, samples, start=0):
@@ -68,7 +98,6 @@ class AudioWhiteNoiseDataset(Dataset):
         self.x = waveform_noisy[0]
         self.x = sliding_window(self.x, window, stride)
         self.x = self.x[:size, None, :]
-        #self.x = self.x[start:start+samples, None, :]
         
         # Get the target data
 
@@ -85,29 +114,6 @@ class AudioWhiteNoiseDataset(Dataset):
         return (self.x[index], self.y[index])
 
     def __len__(self):
-        return len(self.x)
+        return len(self.x) """
 
 
-class AudioDataset(Dataset):
-    def __init__(self, run_name, filename, window, stride, arguments, size=-1, start=0):
-        #print("filename : " + filename)
-        in_file, out_file = preprocess(run_name, filename, arguments.split(','))
-
-
-        waveform_in, _ = torchaudio.load(in_file)
-
-        self.x = waveform_in[0]
-        self.x = sliding_window(self.x, window, stride)
-        self.x = self.x[start:start+size, None, :]
-
-        waveform_out, _ =  torchaudio.load(out_file)
-
-        self.y = waveform_out[0]
-        self.y = sliding_window(self.y, window, stride)
-        self.y = self.y[start:start+size, None, :]
-
-    def __getitem__(self, index):
-        return (self.x[index], self.y[index])
-
-    def __len__(self):
-        return len(self.x)

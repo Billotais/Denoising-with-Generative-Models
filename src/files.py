@@ -2,6 +2,35 @@
 import pandas as pd
 import os
 
+
+# Simple representation of a file folder
+# We only have one test file, and one validation file, those are the two last
+class SimpleFiles():
+    def __init__(self, root, split):
+        self.root = root
+        self.files = list(map(lambda x: root+"/"+x, os.listdir(self.root)))
+       
+    def get(self, count=-1):
+        return self.files[:count]
+
+    def get_train(self, count=-1):
+        if count == -1:
+            return self.files[:-2]
+        else:
+            return self.files[:min(len(self.files)-2, count)]
+
+    def get_val(self):
+        return [self.files[-2]]
+
+    def get_test(self):
+        return [self.files[-1]]
+
+
+
+# This is not used anymore, this represent the full maestro dataset
+# It reads injson file the train/test/val split, and used it
+# It is also possible to only choose a specific year to restrict the data
+
 class MAESTROFiles():
     """Provide filenames for the dataset"""
     def __init__(self, root, year=-1):
@@ -36,24 +65,7 @@ class MAESTROFiles():
         return out
        
 
-class SimpleFiles():
-    def __init__(self, root, split):
-        self.root = root
-        self.files = list(map(lambda x: root+"/"+x, os.listdir(self.root)))
-        
-        #print(self.files)
-       
-    def get(self, count=-1):
-        return self.files[:count]
-    def get_train(self, count=-1):
-        if count == -1:
-            return self.files[:-2]
-        else:
-            return self.files[:min(len(self.files)-2, count)]
-    def get_val(self):
-        return [self.files[-2]]
-    def get_test(self):
-        return [self.files[-1]]
+
 
 
     
