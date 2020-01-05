@@ -11,27 +11,21 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 from scipy.signal import fftconvolve
 import pyroomacoustics as pra
+from random import gauss, seed
+
 noises = ["whitenoise", "pinknoise", "brownnoise", "tpdfnoise"]
 
-from random import gauss, seed
-seed(111)
 
+# Change the sampling rates of both the input and output file
 def sample(filename_x, filename_y, audio_rate, file_rate):
-
-    print(filename_x)
-    print(filename_y)
-
-    #name_x = ".".join(filename_x.split('.')[:-1]) + "-rate_" + str(audio_rate) + "_x." + filename_x.split('.')[-1]
+    
     name_x = filename_x.split('.')[0] + "-rate_" + str(int(audio_rate)) + "_x." + filename_x.split('.')[-1]
-    #print(filename_x.split('.'))
-    #print(name_x)
     # Get the compressed data = input
     # Compress it and then upsample at the same rate as the target so the network works
     os.system('sox ' + filename_x + ' -r ' + str(audio_rate) + ' tmp/compressed.wav')
     os.system('sox tmp/compressed.wav -r ' + str(file_rate) + " " + name_x)
+
     name_y = filename_y.split('.')[0] + "-rate_" + str(int(file_rate)) + "_y." + filename_y.split('.')[1]
-    #print(filename_y)
-    #print(name_y)
     # Compress it at the target rate directly
     os.system('sox ' + filename_y + ' -r ' + str(file_rate) + " " + name_y)
 
@@ -39,6 +33,7 @@ def sample(filename_x, filename_y, audio_rate, file_rate):
 
     return name_x, name_y
 
+# Add noise of type "noise_type", with a given intensity and maybe some variance
 def noise(filename_x, filename_y, noise_type, variance, intensity):
     if noise_type not in noises: 
         print(noise_type + " is not a valid noise type !")
@@ -51,9 +46,10 @@ def noise(filename_x, filename_y, noise_type, variance, intensity):
     os.system("rm tmp/noise.wav -f")
     return name, filename_y
 
-
+# Add some reverberation using pysndfx
 def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, room_scale=100, stereo_depth=100, pre_delay=40, wet_gain=0, wet_only=False):
 
+    # add some variance
     reverberance += gauss(0, float(variance))
     hf_damping += gauss(0, float(variance))
     room_scale += gauss(0, float(variance))
@@ -61,15 +57,14 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
     pre_delay += gauss(0, float(variance))
     wet_gain += gauss(0, float(variance))
     
-    fx = (
-        AudioEffectsChain()
-        # .highshelf()
-        .reverb(reverberance=80, hf_damping=100, room_scale=100, stereo_depth=100, pre_delay=40, wet_gain=0, wet_only=False)
-        # .phaser()
-        # .delay()
-        # .lowshelf()
-    )
+
     name = ".".join(filename_x.split('.')[:-1]) + "-reverb." + filename_x.split('.')[-1]
+
+    fx = (
+        AudioEffectsChain().reverb(reverberance=80, hf_damping=100, room_scale=100, stereo_depth=100, pre_delay=40, wet_gain=0, wet_only=False)
+    )
+    
+
     fx(filename_x, name)
     return name, filename_y
 
@@ -77,15 +72,10 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
 
 
 def preprocess(run_name, filename, arguments):
-    #print(filename)
-    # now = datetime.now()
-    # date_time = now.strftime("%m_%d_%Y-%H:%M:%S")
+
 
     folder = "out/" + run_name + "/tmp"
-    # print(filename)
-    # print("before")
     os.system('cp '+ filename + ' ' + folder + '/' + filename.split('/')[-1])
-    # print("after")
 
     file_x = folder + "/" + filename.split('/')[-1]
     file_y = folder + "/" + filename.split('/')[-1]
@@ -93,32 +83,15 @@ def preprocess(run_name, filename, arguments):
     for command in arguments:
         
         args = command.strip().split(' ')
-        #print(args)
-        if args[0] == "sample":
+        if args[0] == "sample": # "sample input_rate target_rate"
             file_x, file_y = sample(file_x, file_y, *[float(i) for i in args[1:]])
-        if args[0] in noises:
+        if args[0] in noises: #" noisetype variance intensity"
             file_x, file_y = noise(file_x, file_y, args[0], *[float(i) for i in args[1:]])
         if args[0] == "reverb": # "reverb sample_rate *reverb_args"
             file_x, file_y = reverb(file_x, file_y, *[float(i) for i in args[2:]])
             file_x, file_y = sample(file_x, file_y, args[1], args[1])
     
-    # file_x_wav = file_x.split(".")[-2] + ".wav"
-    # file_y_wav = file_y.split(".")[-2] + ".wav"
-    # os.system("sox " + file_x + " " + file_x_wav)
-    # os.system("sox " + file_y + " " + file_y_wav)
-
-    # return file_x_wav, file_y_wav
     
     return file_x, file_y
-
-
-
-# Apply phaser and reverb directly to an audio file.
-
-# print(sample("in.wav", 5000, 10000))
-# print(whitenoise("in.wav", 0.005))
-
-# print(preprocess("in.wav", ["sample 5000 10000", "whitenoise 0.005"]))
-#print(preprocess("in.wav", ["reverb"]))
 
 

@@ -7,7 +7,7 @@ import matplotlib as mpl
 import torch.optim
 import torchaudio
 
-
+# Helper function used in the parser to handle boolean values
 def str2bool(v):
     if isinstance(v, bool):
        return v
@@ -19,7 +19,8 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
         
 def pixel_shuffle_1d(x, upscale_factor):
-    """Does the subpixel operation"""
+    """Does the subpixel operation
+    taken from https://github.com/jjery2243542/voice_conversion/blob/master/model.py"""
     batch_size, channels, steps = x.size()
     channels //= upscale_factor
     input_view = x.contiguous().view(batch_size, channels, upscale_factor, steps)
@@ -31,20 +32,22 @@ def get_sizes_for_layers(B):
     total number of filter"""
     n_channels = []
     size_filters = []
-    #test = []
     for b in range(1, B+1):
         n_channels.append(min(2**(6 + b), 512)) # They wrote max in paper, but min in code
         size_filters.append(max(2**(7-b) + 1, 9)) # They wrote min in paper, but max in code
-        #test.append(min(2**(7+(B-b+1)), 512))
     
     return n_channels, size_filters
 
 
 # The input channel count is equal to the the output channel count of the previous layer
 # Input will be all the channel counts, shifted to the right with a 1 before
+
+# The first argument (i.e. the number of channels at the first layer)
+# is either 1 or 2 depending on if the conditional discriminator is used or not
 def args_down(n_channels, size_filters, cond=False):
     """Generate an array with the arguments given to each layer for each creation\\
        Downsampling layers"""
+    
     return zip([2 if cond else 1] + n_channels[:-1], n_channels, size_filters)
 
 # Input filter count is the size of the bottlneck for the first up layer
@@ -60,32 +63,34 @@ def args_up(n_channels, size_filters):
     return zip([int(n_channels[-1]/2)] + n_channels[::-1][:-1], n_channels[::-1], size_filters[::-1])
 
 
-
+# unfold dimension to make our sliding window
 def sliding_window(x, window_size, step_size=1):
-    # unfold dimension to make our rolling window
     return x.unfold(0,window_size,step_size)
 
 
 
 def ones_target(size):
-    '''
-    Tensor containing ones, with shape = size
-    '''
+    """Tensor containing ones, with shape = size"""
+    
     data = Variable(torch.ones(size, 1))
     return data
 
 def zeros_target(size):
-    '''
-    Tensor containing zeros, with shape = size
-    '''
+    """Tensor containing zeros, with shape = size"""
+    
     data = Variable(torch.zeros(size, 1))
     return data
 
+# Concatenate a list of tensor along the time dimnesion
 def concat_list_tensors(tensor_list):
     out = torch.cat(tuple(tensor_list), 2)
     return out
 
+# Concatenate a list of tensor along the time dimnesion
+# but cut them before that since we have sopme overlap
+# used for audio reconstruction to avoid artefacts at joining points
 def cut_and_concat_tensors(tensor_list, window, stride):
+    # first cut the tensors "in the middle", and concat them together
     limit = int((window - stride) / 2)
     
     cut_tensors = []
@@ -93,20 +98,23 @@ def cut_and_concat_tensors(tensor_list, window, stride):
     for tensor in tensor_list[1:-1]:
         cut_tensors.append(tensor[:,:,limit:-limit])
 
-
-
     concat = concat_list_tensors(cut_tensors)
+
+    # then cut the 2 tensor on the borders, and concatenate them aswell
     concat = torch.cat((tensor_list[0][:,:,:-limit], concat), 2)
     concat = torch.cat((concat, tensor_list[-1][:,:,limit:]), 2)
     return concat
 
 def create_output_audio(outputs, rate, name, window, stride, batch):
-    #outputs = [torch.flatten(x, 0)[None, None, :] for x in outputs]# addedd to hansdle batches in output 
+    # Regroup all elements of a batchsize=b into a list of tensor of batchsize=1
     outputs = [torch.chunk(x, batch, dim=0) for x in outputs]
     outputs = [val for sublist in outputs for val in sublist]
+    # Concatenate them
     out = cut_and_concat_tensors(outputs, window, stride)
+    # Remove unnecessary dimensions
     out_formated = out.reshape((1, out.size()[2]))
-    torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=16, channels_first=True)
+    # Create a wav file from it
+    torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=32, channels_first=True)
 
 def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, loss_train_ae, loss_test_ae, name, GAN, AE):
 
