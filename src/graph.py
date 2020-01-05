@@ -1,11 +1,11 @@
 
 import re
-import torch.nn.functional as F
-from network import *
-from graphviz import Digraph
-import torch
-from torch.autograd import Variable
 
+import torch
+import torch.nn.functional as F
+from graphviz import Digraph
+from network import *
+from torch.autograd import Variable
 
 # Not used in the project, helper code the visualize the networks
 

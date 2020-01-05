@@ -1,17 +1,16 @@
 import os
-
-import torchaudio
-from torch.utils.data import Dataset, TensorDataset
-from pysndfx import AudioEffectsChain
-
 from datetime import datetime
+from random import gauss, seed
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+
+import pyroomacoustics as pra
+import torchaudio
+from pysndfx import AudioEffectsChain
 from scipy.io import wavfile
 from scipy.signal import fftconvolve
-import pyroomacoustics as pra
-from random import gauss, seed
+from torch.utils.data import Dataset, TensorDataset
 
 noises = ["whitenoise", "pinknoise", "brownnoise", "tpdfnoise"]
 
@@ -93,5 +92,3 @@ def preprocess(run_name, filename, arguments):
     
     
     return file_x, file_y
-
-

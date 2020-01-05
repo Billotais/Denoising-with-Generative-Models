@@ -1,11 +1,13 @@
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd.variable import Variable
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import torch.optim
 import torchaudio
+from torch.autograd.variable import Variable
+
 
 # Helper function used in the parser to handle boolean values
 def str2bool(v):

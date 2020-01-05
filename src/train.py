@@ -1,8 +1,10 @@
-from utils import ones_target, zeros_target, plot, collaborative_sampling
+from test import make_test_step
+
+import numpy as np
+
 import torch.nn as nn
 import torch.optim
-import numpy as np
-from test import make_test_step
+from utils import collaborative_sampling, ones_target, plot, zeros_target
 
 
 def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab, cgan):

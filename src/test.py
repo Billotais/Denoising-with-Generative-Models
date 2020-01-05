@@ -1,8 +1,10 @@
-from utils import zeros_target, ones_target, collaborative_sampling
-import torch.nn as nn
 #from progress.bar import Bar
 import matplotlib.pyplot as plt
+
 import torch
+import torch.nn as nn
+from utils import collaborative_sampling, ones_target, zeros_target
+
 
 def test(gen, discr, ae, loader, count, name, loss,  device, gan_lb, ae_lb, collab, cgan):
 

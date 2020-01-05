@@ -2,11 +2,10 @@
 import os
 
 import torchaudio
+from preprocessing import preprocess
 from torch.utils.data import Dataset, TensorDataset
-
 from utils import sliding_window
 
-from preprocessing import preprocess
 
 # Not used anymore, kept for "archiving"
 class AudioDataset(Dataset):
@@ -115,5 +114,3 @@ class AudioWhiteNoiseDataset(Dataset):
 
     def __len__(self):
         return len(self.x) """
-
-

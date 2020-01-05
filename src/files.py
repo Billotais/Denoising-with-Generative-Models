@@ -1,6 +1,7 @@
 #%%
-import pandas as pd
 import os
+
+import pandas as pd
 
 
 # Simple representation of a file folder
@@ -63,10 +64,3 @@ class MAESTROFiles():
         if (self.year > 0): df = self.data[self.data['year'] == self.year]
         out = list(df['audio_filename'])
         return out
-       
-
-
-
-
-    
-

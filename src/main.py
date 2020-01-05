@@ -6,28 +6,24 @@
 import argparse
 import os
 import sys
+from test import make_test_step, test
 
 import matplotlib.pyplot as plt
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchaudio
-
-from torch.utils.data import ConcatDataset, DataLoader
-
 from datasets import AudioDataset
 from files import MAESTROFiles, SimpleFiles
-from network import Generator, Discriminator, AutoEncoder, ConditionalDiscriminator
-from utils import (concat_list_tensors, cut_and_concat_tensors, plot, create_output_audio)
+from network import (AutoEncoder, ConditionalDiscriminator, Discriminator,
+                     Generator)
+from torch.utils.data import ConcatDataset, DataLoader
 from train import make_train_step, train
-from test import  make_test_step, test
-import numpy as np
-from utils import str2bool
-
-import torch.optim
-
-
+from utils import (concat_list_tensors, create_output_audio,
+                   cut_and_concat_tensors, plot, str2bool)
 
 GAN = False
 
@@ -305,6 +301,3 @@ if __name__ == "__main__":
 # Tester ae
 # Faire slides
 # Quand meme mettre les loss des différents moodèles
-
-
-

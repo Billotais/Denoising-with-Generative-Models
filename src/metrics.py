@@ -1,7 +1,9 @@
-import torchaudio
-import torch
-import math
 import argparse
+import math
+
+import torch
+import torchaudio
+
 
 # Given two files and a metric type, compute this metric on a fiven length
 def metric(file1, file2, size, metric):
