@@ -64,7 +64,14 @@ def main():
     print("Original " + str(metric(source, target, count, 'lsd')))
     print("Improved " + str(metric(generated, target, count, 'lsd')))
 
-
+def get_metrics(source, generated, target, count):
+    print("SNR (higher is better)")
+    print("Original " + str(metric(source, target, count, 'snr')))
+    print("Improved " + str(metric(generated, target, count, 'snr')))
+    print("LSD (lower is better)")
+    print("Original " + str(metric(source, target, count, 'lsd')))
+    print("Improved " + str(metric(generated, target, count, 'lsd')))
+    
 if __name__ == "__main__":
     main()
 

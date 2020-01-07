@@ -1,5 +1,5 @@
 from test import make_test_step
-
+import os
 import numpy as np
 
 import torch.nn as nn
@@ -67,7 +67,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
             # If 10 batches done, compute the averages over the last 10 batches for some graphs
             if (len(loss_buffer) % 10 == 0):
                               
-                # We consider that 10 epochs is enogh to wait before starting the other networks
+                # We consider that 10 batches is enough to wait before starting the other networks
                 start_others = True
 
                 # Get average train loss
@@ -126,12 +126,12 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
             }, "out/" + name + "/models/model_" + str(epoch) + ".tar")
 
         # Save the losses
-        np.save('out/' + name + '/loss_train.npy', np.array(losses))
-        np.save('out/' + name + '/loss_test.npy', np.array(val_losses))
-        np.save('out/' + name + '/loss_train_gan.npy', np.array(losses_gan))
-        np.save('out/' + name + '/loss_test_gan.npy', np.array(val_losses_gan))
-        np.save('out/' + name + '/loss_train_ae.npy', np.array(losses_ae))
-        np.save('out/' + name + '/loss_test_ae.npy', np.array(val_losses_ae))
+        np.save('out/' + name + '/losses/loss_train.npy', np.array(losses))
+        np.save('out/' + name + '/losses/loss_test.npy', np.array(val_losses))
+        np.save('out/' + name + '/losses/loss_train_gan.npy', np.array(losses_gan))
+        np.save('out/' + name + '/losses/loss_test_gan.npy', np.array(val_losses_gan))
+        np.save('out/' + name + '/losses/loss_train_ae.npy', np.array(losses_ae))
+        np.save('out/' + name + '/losses/loss_test_ae.npy', np.array(val_losses_ae))
 
 
     # If collaborative GAN is enabled, do discriminator shaping
@@ -183,8 +183,9 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cga
         loss_g = (loss_g_normal + lambda_d*loss_g_adv + lambda_ae*loss_g_ae)
         
         # Propagate the gradiants
-        loss_g.backward()
-        optimizer_g.step()
+        if start_others:
+            loss_g.backward()
+            optimizer_g.step()
 
         #####################
         # Train discriminator

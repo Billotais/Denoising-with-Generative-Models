@@ -57,12 +57,15 @@ class Downsampling_G(nn.Module):
         super(Downsampling_G, self).__init__()
         self.verbose = verbose
         self.conv = nn.Conv1d(in_channels=in_ch, out_channels=out_ch, kernel_size=size, stride=2, padding_mode='zeros', padding=int((size-1)/2))
+        self.batchnorm = nn.BatchNorm1d(out_ch)
         self.relu = nn.LeakyReLU(RELU)
         
         
-    def forward(self, x):
+        
+    def forward(self, x, batch=False):
         if self.verbose: print("Before conv down : " + str(x.size()))
         y = self.conv(x)
+        if batch: y = self.batchnorm(y)
         y = self.relu(y)
         if self.verbose: print("After conv down : " + str(y.size()))
         return y
@@ -291,6 +294,25 @@ class ConditionalDiscriminator(nn.Module):
         y = self.discriminator(y)
         return y
 
+
+####################################
+# Code for the Patch Discriminator #
+####################################
+
+class PatchDiscriminator(nn.Module):
+    def __init__(self, depth, dropout, input_size, verbose=0):
+        super(PacthDiscriminator, self).__init__()
+
+        self.discriminator = Discriminator(depth, dropout, (input_size[0], 128), verbose=0, cond=True)
+    
+    def forward(self, x):
+
+        # First we split our data into block of 128
+        patches = x.unfold(0, 128, 64)
+        outputs = [self.discriminator(patch) for patch in patches]
+        
+        return y.mean()
+
 ############################
 # Code for the Autoencoder #
 ############################
@@ -363,7 +385,7 @@ class AutoEncoder(nn.Module):
         # Downsampling
         xi = x
         for i in range(len(self.down)):
-            xi = self.down[i](xi)
+            xi = self.down[i](xi, batch=True)
             
         # Bottleneck
         b = self.bottleneck(xi)

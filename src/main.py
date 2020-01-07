@@ -25,6 +25,8 @@ from train import make_train_step, train
 from utils import (concat_list_tensors, create_output_audio,
                    cut_and_concat_tensors, plot, str2bool)
 
+from metrics import get_metrics
+
 GAN = False
 
 
@@ -67,7 +69,7 @@ def init():
     args = ap.parse_args()
     variables = vars(args)
 
-    print(variables)
+    #print(variables)
 
     global ROOT
     ROOT = variables['data_root']
@@ -104,6 +106,7 @@ def init():
         os.system("mkdir out/" + name)
         os.system("mkdir out/" + name + "/models")
         os.system("mkdir out/" + name + "/tmp")
+        os.system("mkdir out/" + name + "/losses")
 
     # Save the command in a file for future reference
     with open("out/" + name + "/command", "w") as text_file:
@@ -163,7 +166,7 @@ def load_data(train_n, val_n, dataset, preprocess, batch_size, window, stride, d
 
     # Create a dataset Object for each category, using the desired preprocessing piepline
     datasets_train = [AudioDataset(run_name, n, window, stride, preprocess) for n in names_train]
-    datasets_test =  [AudioDataset(run_name, n, window, stride, preprocess) for n in names_test]
+    datasets_test =  [AudioDataset(run_name, n, window, stride, preprocess, test=True) for n in names_test]
     datasets_val =   [AudioDataset(run_name, n, window, stride, preprocess, size=128, start=32) for n in names_val]
 
     # Since those are actually lists of datasets (one for each file), concatenate them
@@ -176,7 +179,7 @@ def load_data(train_n, val_n, dataset, preprocess, batch_size, window, stride, d
     test_loader = DataLoader(dataset=data_test, batch_size=batch_size, shuffle=False)
     val_loader = DataLoader(dataset=data_val, batch_size=batch_size, shuffle=True)
 
-    print("Data loaded")
+    print("Data loaded\n")
     return train_loader, test_loader, val_loader
 
 
@@ -218,6 +221,11 @@ def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr
     # Put the data together into a real file
     create_output_audio(outputs = outputs, rate=out_rate, name=name, window = window, stride=stride, batch=batch)
     print("Output file created")
+
+    os.system("rm out/" + name + "/tmp -rf")
+
+    os.system("python metrics.py --source out/" + name +"/in.wav --generated out/" + name +"/out.wav --target out/" + name + "/target.wav --count " + str(200000) + " > out/" + name + "/metrics")
+    print("Metrics computed, all done !")
 
 
     
