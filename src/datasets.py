@@ -9,10 +9,10 @@ from utils import sliding_window
 
 # Not used anymore, kept for "archiving"
 class AudioDataset(Dataset):
-    def __init__(self, run_name, filename, window, stride, arguments, size=-1, start=0):
+    def __init__(self, run_name, filename, window, stride, arguments, size=-1, start=0, test=False):
 
         # Create the two files using the preprocessing pipeline
-        in_file, out_file = preprocess(run_name, filename, arguments.split(','))
+        in_file, out_file = preprocess(run_name, filename, arguments.split(','), test=test)
 
         # Load the input
         waveform_in, _ = torchaudio.load(in_file)

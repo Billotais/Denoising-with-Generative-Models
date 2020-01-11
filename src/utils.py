@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim
+
+import torch.optim as optim
 import torchaudio
 from torch.autograd.variable import Variable
 
@@ -208,32 +209,38 @@ def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, loss
 
 # Algorthm 1 of CGAN, at the last level
 def collaborative_sampling(generator, discriminator, x, loss, N, K):
-    print("collab sampling")
     i = 0
     misclassified = True
-    layer = generator.B-1
+    layer = generator.B-2
 
-    # Get our x_l and yhat, use last layer of generator
+    # Get our x_l and yhat, use one before last layer of generator
     generator.train()
     discriminator.train()
-    x.requires_grad=True
+
+    # First pass has arg xl=None => return xl
     xl = generator(x, lastskip=True, collab_layer=layer, xl=None)
-    
-    
-    yhat = generator(x)
+    #xl.requires_grad=True
+    # Second pass we give xl as an arg meaning that we continue from the layer of xl
+    yhat = generator(x, lastskip=True, collab_layer=layer, xl=xl)
+
+
     while misclassified and i < K:
-        print("loop")
         i+=1
+
+        # We look at what the discriminator tells us
         pred = discriminator(yhat)
         mean = pred.mean()
         if mean < 0.5: # our sample is missclassified, we have to improve it
+
             # Get the gradiant of the discr loss wrt xl
             loss_d = loss(pred, ones_target(N))
-            loss_d.backward()
+            loss_d.backward(retain_graph=True)
+            grad = generator.get_activations_gradient()
             # Update xl to an improved value
-            xl = xl - 0.1*xl.grad
+            xl = xl - 0.1*grad
             # Get our new output from the generator
             yhat = generator(x, lastskip=True, collab_layer=layer, xl=xl)
         else: misclassified = False
+
 
     return yhat

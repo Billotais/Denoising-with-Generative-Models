@@ -19,23 +19,23 @@ def test(gen, discr, ae, loader, count, name, loss,  device, gan_lb, ae_lb, coll
     outputs = []
 
     # We want to disabled gradiants since we won't do any update
-    with torch.no_grad():
-        for x_test, y_test in loader:
+    #with torch.no_grad():
+    for x_test, y_test in loader:
 
-            gen.to(device)
-            discr.to(device)
-            ae.to(device)
-            x_test = x_test.to(device)
-            y_test = y_test.to(device)
+        gen.to(device)
+        discr.to(device)
+        ae.to(device)
+        x_test = x_test.to(device)
+        y_test = y_test.to(device)
 
-            # Get the loss, and the generated sample, and save them
-            loss, _, _, y_test_hat = test_step(x_test, y_test)
+        # Get the loss, and the generated sample, and save them
+        loss, _, _, y_test_hat = test_step(x_test, y_test)
 
-            losses.append(loss)
-            outputs.append(y_test_hat.to('cpu'))
+        losses.append(loss)
+        outputs.append(y_test_hat.to('cpu'))
 
-            # stop if enough samples generated
-            if (count > 0 and len(losses) >= count ): break
+        # stop if enough samples generated
+        if (count > 0 and len(losses) >= count ): break
 
     # Plot the losses
     plt.plot(losses)
@@ -74,6 +74,6 @@ def make_test_step(generator, discriminator, ae, loss_fn, gan_lb, ae_lb, cgan, c
             # maximum 50 iterations
             yhat = collaborative_sampling(generator, discriminator, x, loss, N, 50)
             
-        return loss_g, loss_d, loss_ae, yhat
+        return loss_g, loss_d, loss_ae, yhat.detach()
 
     return test_step

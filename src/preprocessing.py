@@ -70,7 +70,7 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
 
 
 
-def preprocess(run_name, filename, arguments):
+def preprocess(run_name, filename, arguments, test):
 
 
     folder = "out/" + run_name + "/tmp"
@@ -90,5 +90,11 @@ def preprocess(run_name, filename, arguments):
             file_x, file_y = reverb(file_x, file_y, *[float(i) for i in args[2:]])
             file_x, file_y = sample(file_x, file_y, args[1], args[1])
     
-    
+    os.system('rm '+ folder + '/' + filename.split('/')[-1])
+
+
+    if test: # Copy the test files for easier metrics evaluation
+        os.system('cp ' + file_x + " " + "out/" + run_name + "/in.wav")
+        os.system('cp ' + file_y + " " +  "out/" + run_name + "/target.wav")
+
     return file_x, file_y
