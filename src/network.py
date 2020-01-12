@@ -295,24 +295,6 @@ class ConditionalDiscriminator(nn.Module):
         return y
 
 
-####################################
-# Code for the Patch Discriminator #
-####################################
-
-class PatchDiscriminator(nn.Module):
-    def __init__(self, depth, dropout, input_size, verbose=0):
-        super(PacthDiscriminator, self).__init__()
-
-        self.discriminator = Discriminator(depth, dropout, (input_size[0], 128), verbose=0, cond=True)
-    
-    def forward(self, x):
-
-        # First we split our data into block of 128
-        patches = x.unfold(0, 128, 64)
-        outputs = [self.discriminator(patch) for patch in patches]
-        
-        return y.mean()
-
 ############################
 # Code for the Autoencoder #
 ############################
