@@ -117,7 +117,7 @@ def create_output_audio(outputs, rate, name, window, stride, batch):
     # Remove unnecessary dimensions
     out_formated = out.reshape((1, out.size()[2]))
     # Create a wav file from it
-    torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=32, channels_first=True)
+    torchaudio.save("out/"+name+"/out.wav", out_formated, rate, precision=16, channels_first=True)
 
 def plot(loss_train, loss_test, loss_train_gan, loss_test_gan, loss_normal, loss_train_ae, loss_test_ae, name, GAN, AE):
 
