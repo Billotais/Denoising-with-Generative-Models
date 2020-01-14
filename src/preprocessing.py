@@ -94,7 +94,9 @@ def preprocess(run_name, filename, arguments, test):
 
 
     if test: # Copy the test files for easier metrics evaluation
-        os.system('cp ' + file_x + " " + "out/" + run_name + "/in.wav")
-        os.system('cp ' + file_y + " " +  "out/" + run_name + "/target.wav")
+        # os.system('cp ' + file_x + " " + "out/" + run_name + "/in.wav")
+        # os.system('cp ' + file_y + " " +  "out/" + run_name + "/target.wav")
+        os.system('sox ' + file_x + " --channels 1 " + "out/" + run_name + "/in.wav")
+        os.system('sox ' + file_y + " --channels 1 " +  "out/" + run_name + "/target.wav")
 
     return file_x, file_y
