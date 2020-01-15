@@ -38,12 +38,13 @@ class AudioDataset(Dataset):
 
 
         
-""" # The identity dataset, loads one file 
-class AudioIDDataset(Dataset):
+# The identity dataset, loads one file 
+class IDDataset(Dataset):
     
-    def __init__(self, filename, window, stride, samples, start=0):
+    def __init__(self, run_name, filename, window, stride, rate, size=-1, start=0, test=False):
        
-        waveform, sample_rate = torchaudio.load(filename)
+        file_in_out, out_file = preprocess("id_" + str(rate), filename, "sample " + str(rate) + str(rate), test=test)
+        waveform, sample_rate = torchaudio.load(file_in_out)
         input = waveform[0]
         inputs = sliding_window(input, window, stride)
         self.x = inputs[start:start+samples, None, :]
@@ -55,7 +56,7 @@ class AudioIDDataset(Dataset):
     def __len__(self):
         return len(self.x)
 
-
+""" 
 class AudioUpScalingDataset(Dataset):
     def __init__(self, filename, window, stride, compressed_rate, target_rate, size=-1, start=0):
         

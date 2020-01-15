@@ -184,6 +184,8 @@ def load_data(train_n, val_n, dataset, preprocess, batch_size, window, stride, d
 
 
 
+
+
 def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, loss, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, cgan, scheduler):
     # Init net and cuda
     gen, discr, ae, device = init_net(depth=depth, dropout=dropout, window=window, cgan=cgan)
