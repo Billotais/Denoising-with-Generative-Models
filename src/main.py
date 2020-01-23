@@ -59,11 +59,12 @@ def init():
     ap.add_argument("--loss", required=False, help="Choose the loss for the generator, [L1, L2], default='L2')", type=str, default="L2")
     ap.add_argument("--gan", required=False, help="lambda for the gan loss [float], default=0 (meaning gan disabled)", type=float, default=0)
     ap.add_argument("--ae", required=False, help="lambda for the audoencoder loss [float], default=0 (meaning autoencoder disabled)", type=float, default=0)
+    ap.add_argument("--ae_path", required=False, help="path to the trained autoencoder model", type=str, default="out/ae/10000/models/model.tar")
     ap.add_argument("--collab", required=False, help="Enable the collaborative gan [bool], default=False", type=str2bool, default=False)
     ap.add_argument("--cgan", required=False, help="Enable Conditional GAN [bool], default=False", type=str2bool, default=False)
     ap.add_argument("--lr_g", required=False, help="learning rate for the generator [float], default=0.0001", type=float, default=0.0001)
     ap.add_argument("--lr_d", required=False, help="learning rate for the discriminator [float], default=0.0001", type=float, default=0.0001)
-    ap.add_argument("--lr_ae", required=False, help="learning rate for the autoencoder [float], default=0.0001", type=float, default=0.0001)
+   
     ap.add_argument("--scheduler", required=False, help="enable the scheduler [bool], default=False", type=str2bool, default=False)
 
     args = ap.parse_args()
@@ -97,7 +98,7 @@ def init():
     dropout = variables['dropout']
     lr_g = variables['lr_g']
     lr_d = variables['lr_d']
-    lr_ae = variables['lr_ae']
+    ae_path = variables['ae_path']
     scheduler = variables['scheduler']
     
     # If we start from the start, create the necessary folders
@@ -114,8 +115,8 @@ def init():
     
 
     pipeline(count, out, epochs, batch, window, stride, depth, dropout, 
-            lr_g, lr_d, lr_ae, rate, loss, train_n, load, continue_train, 
-            name, dataset, dataset_args, preprocessing, gan, ae, collab, cgan, scheduler)
+            lr_g, lr_d, rate, loss, train_n, load, continue_train, 
+            name, dataset, dataset_args, preprocessing, gan, ae, collab, cgan, ae_path, scheduler)
 
 # Initialize all the networks
 def init_net(depth, dropout, window, cgan):
@@ -186,7 +187,7 @@ def load_data(train_n, val_n, dataset, preprocess, batch_size, window, stride, d
 
 
 
-def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, lr_ae, out_rate, loss, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, cgan, scheduler):
+def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr_d, out_rate, loss, train_n, load, continue_train, name, dataset, dataset_args, preprocessing, gan_lb, ae_lb, collab, cgan, ae_path, scheduler):
     # Init net and cuda
     gen, discr, ae, device = init_net(depth=depth, dropout=dropout, window=window, cgan=cgan)
     
@@ -199,23 +200,27 @@ def pipeline(count, out, epochs, batch, window, stride, depth, dropout, lr_g, lr
     # Create our optimizers
     adam_gen = optim.Adam(gen.parameters(), lr=lr_g)
     adam_discr = optim.Adam(discr.parameters(), lr=lr_d)
-    adam_ae = optim.Adam(ae.parameters(), lr=lr_ae)
+
+    # If we want to use the autoecoder, need to load an existing model
+    if ae_lb: 
+        checkpoint = torch.load(ae_path)
+        ae.load_state_dict(checkpoint['ae_state_dict'])
+
 
     # If want to load a pre-trained model, load everything usefull from the .tar file
+
     if load != "": 
         checkpoint = torch.load("out/" + name + "/models/model.tar")
 
         gen.load_state_dict(checkpoint['gen_state_dict'])
         if gan_lb: discr.load_state_dict(checkpoint['discr_state_dict'])
-        if ae_lb: ae.load_state_dict(checkpoint['ae_state_dict'])
 
         adam_gen.load_state_dict(checkpoint['optim_g_state_dict'])
         if gan_lb: adam_discr.load_state_dict(checkpoint['optim_d_state_dict'])
-        if ae_lb: adam_ae.load_state_dict(checkpoint['optim_ae_state_dict'])
 
     # If we want to train the model, simply call the train function
     if ((load == "") or continue_train): 
-        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_discr, optim_ae=adam_ae, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler, collab=collab, cgan=cgan)
+        train(gen=gen, discr=discr, ae=ae, loader=train_loader, val=val_loader, epochs=epochs, count=count, name=name, loss=loss, optim_g=adam_gen, optim_d=adam_discr, device=device, gan=gan_lb, ae_lb=ae_lb, scheduler=scheduler, collab=collab, cgan=cgan)
 
     # Once it's trained, generate an improved audio by calling test
     outputs = test(gen=gen, discr=discr, ae=ae, loader=test_loader, count=out, name=name, loss=loss, device=device, gan_lb=gan_lb, ae_lb=ae_lb, collab=collab, cgan=cgan)

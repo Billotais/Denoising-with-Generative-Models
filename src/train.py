@@ -7,7 +7,7 @@ import torch.optim
 from utils import collaborative_sampling, ones_target, plot, zeros_target
 
 
-def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim_d, optim_ae, device, gan, ae_lb, scheduler, collab, cgan):
+def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim_d, device, gan, ae_lb, scheduler, collab, cgan):
 
 
     print("Training for " + str(epochs) +  " epochs, " + str(count) + " mini-batches per epoch")
@@ -16,7 +16,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
     loss = nn.MSELoss() if loss == "L2" else nn.L1Loss()
 
     # create the functions used at each step of the training / testing process
-    train_step = make_train_step(gen, discr, ae, loss, gan, ae_lb, cgan, optim_g, optim_d, optim_ae)
+    train_step = make_train_step(gen, discr, ae, loss, gan, ae_lb, cgan, optim_g, optim_d)
     test_step = make_test_step(gen, discr, ae, loss, gan, ae_lb, cgan, collab=False)
 
     cuda = torch.cuda.is_available()
@@ -121,8 +121,6 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
             'optim_g_state_dict': optim_g.state_dict(),
             'discr_state_dict': discr.state_dict(),
             'optim_d_state_dict': optim_d.state_dict(),
-            'ae_state_dict': ae.state_dict(),
-            'optim_ae_state_dict': optim_ae.state_dict(),
             }, "out/" + name + "/models/model_" + str(epoch) + ".tar")
 
         # Save the losses
@@ -143,7 +141,7 @@ def train(gen, discr, ae, loader, val, epochs, count, name, loss, optim_g, optim
     # Do the final update on the graph
     plot(losses, val_losses, losses_gan, val_losses_gan, losses_normal, losses_ae, val_losses_ae, name, gan, ae_lb)
 
-def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cgan, optimizer_g, optimizer_d, optimizer_ae):
+def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cgan, optimizer_g, optimizer_d):
 
     def train_step(x, y, start_others):
 
@@ -211,23 +209,6 @@ def make_train_step(generator, discriminator, ae, loss, lambda_d, lambda_ae, cga
             loss_d = loss_d.item()
             optimizer_d.step()
 
-        #####################
-        # Train autoencoder
-        #####################
-        loss_ae = 0
-        if lambda_ae:
-            optimizer_ae.zero_grad()
-            ae.train()
-
-            # Make prediction and compute classical L2 loss on the output
-            _, prediction_ae = ae(y)
-            loss_ae = loss(prediction_ae, y)
-
-            # Propagate
-            loss_ae.backward()
-            loss_ae = loss_ae.item()
-
-            optimizer_ae.step()
 
 
 
