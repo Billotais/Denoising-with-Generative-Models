@@ -43,11 +43,11 @@ class IDDataset(Dataset):
     
     def __init__(self, run_name, filename, window, stride, rate, size=-1, start=0, test=False):
        
-        file_in_out, out_file = preprocess("id_" + str(rate), filename, "sample " + str(rate) + str(rate), test=test)
+        file_in_out, out_file = preprocess(run_name, filename, ["scale " + str(rate)], test=test)
         waveform, sample_rate = torchaudio.load(file_in_out)
         input = waveform[0]
         inputs = sliding_window(input, window, stride)
-        self.x = inputs[start:start+samples, None, :]
+        self.x = inputs[start:start+size, None, :]
         
     def __getitem__(self, index):
 

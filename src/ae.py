@@ -180,6 +180,7 @@ def train(ae, loader, val, epochs, count, name, loss,  optim_ae, device, schedul
 
 
     for epoch in range(1, epochs+1):
+        print("Epoch " + str(epoch))
 
         # correct the count variable if needed (the argument)
         total = len(loader)
@@ -189,7 +190,7 @@ def train(ae, loader, val, epochs, count, name, loss,  optim_ae, device, schedul
         curr_count = 0
 
         for x_batch, y_batch in loader:
-
+            print("New batch")
             # Put the networks and the data on the correct device
             ae.to(device)
             x_batch = x_batch.to(device)
@@ -207,7 +208,7 @@ def train(ae, loader, val, epochs, count, name, loss,  optim_ae, device, schedul
             if (curr_count >= count): break
 
             # If 10 batches done, compute the averages over the last 10 batches for some graphs
-            if (len(loss_buffer_ae) % 100 == 0):
+            if (len(loss_buffer_ae) % 10 == 0):
                               
 
                 # Get average train loss
@@ -279,7 +280,7 @@ def make_train_step(ae, loss, optimizer_ae):
         optimizer_ae.step()
 
         # Return the loss
-        return loss_ae.item()
+        return loss_ae
 
     return train_step
 

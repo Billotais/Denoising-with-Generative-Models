@@ -68,20 +68,32 @@ def reverb(filename_x, filename_y, variance=0,reverberance=80, hf_damping=100, r
     return name, filename_y
 
 
+def scale(file, rate):
+   
+    print(file)
+    name = file.split('.')[0] + "-rate_" + str(int(rate)) + "." + file.split('.')[1]
+    # Compress it at the target rate directly
+    os.system('sox ' + file + ' -r ' + str(rate) + " " + name)
 
+
+    return name, name
 
 def preprocess(run_name, filename, arguments, test):
 
 
     folder = "out/" + run_name + "/tmp"
     os.system('cp '+ filename + ' ' + folder + '/' + filename.split('/')[-1])
-
+    # print('cp '+ filename + ' ' + folder + '/' + filename.split('/')[-1])
+    
+    # print(os.system('ls ' + folder))
+    # print(folder)
     file_x = folder + "/" + filename.split('/')[-1]
     file_y = folder + "/" + filename.split('/')[-1]
 
     for command in arguments:
         
         args = command.strip().split(' ')
+        
         if args[0] == "sample": # "sample input_rate target_rate"
             file_x, file_y = sample(file_x, file_y, *[float(i) for i in args[1:]])
         if args[0] in noises: #" noisetype variance intensity"
@@ -89,7 +101,8 @@ def preprocess(run_name, filename, arguments, test):
         if args[0] == "reverb": # "reverb sample_rate *reverb_args"
             file_x, file_y = reverb(file_x, file_y, *[float(i) for i in args[2:]])
             file_x, file_y = sample(file_x, file_y, args[1], args[1])
-    
+        if args[0] == "scale":
+            file_x, file_y = scale(file_x, args[1])
     os.system('rm '+ folder + '/' + filename.split('/')[-1])
 
 
